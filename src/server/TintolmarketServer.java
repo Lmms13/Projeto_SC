@@ -91,30 +91,32 @@ public class TintolmarketServer {
 				try {
 					clientID = (String) inStream.readObject();
 					password = (String) inStream.readObject();
-
-					if (userCatalog.userExists(clientID)) {
-						if (userCatalog.checkPassword(clientID, password)) {
-							user = userCatalog.getUser(clientID);
-							displayMenu();
-
-							while (!socket.isClosed()) {
-								outStream.writeObject(true);
-								String request = (String) inStream.readObject();
-								String reply = processRequest(request);
-								outStream.writeObject(reply);
-							}
-						} else {
-							System.out.println("Credenciais erradas");
-						}
-					} else {
+					
+					if (!userCatalog.userExists(clientID)) {
 						userCatalog.addUser(clientID, password);
-						// adicionar ao ficheiro
+					} 
+					else if(!userCatalog.checkPassword(clientID, password)) {
+						System.out.println("Credenciais erradas");
+						outStream.close();
+						inStream.close();
+						return;
 					}
+					user = userCatalog.getUser(clientID);
+					while (!socket.isClosed()) {
+						outStream.writeBoolean(true);
+						outStream.writeObject(displayMenu_());
+						String request = (String) inStream.readObject();
+						String reply = processRequest(request);
+						outStream.writeObject(reply);
+					}
+
+
+					
 				} catch (ClassNotFoundException e1) {
 					e1.printStackTrace();
 				}
 
-				outStream.writeObject(false);
+				outStream.writeBoolean(false);
 				outStream.close();
 				inStream.close();
 
@@ -160,7 +162,14 @@ public class TintolmarketServer {
 	}
 
 	private void displayMenu() {
-		System.out.println("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n "
+		System.out.println("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n"
+				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
+				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
+				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");
+	}
+	
+	private String displayMenu_() {
+		return("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n "
 				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
 				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
 				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");

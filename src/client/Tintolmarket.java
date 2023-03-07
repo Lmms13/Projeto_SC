@@ -1,5 +1,6 @@
 package client;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -11,7 +12,7 @@ public class Tintolmarket {
 
 	static Scanner sc = new Scanner(System.in);
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws EOFException{
 		if (args.length < 2) {
 			System.out.println("Uso: Tintolmarket <serverAddress>[:port] <userID> [password]");
 			return;
@@ -49,14 +50,22 @@ public class Tintolmarket {
 		try {
 			outStream.writeObject(clientID);
 			outStream.writeObject(password);
-			String reply = (String) inStream.readObject();
-			System.out.printf("Response %s\n", reply);
+			
+			while(inStream.readBoolean()){
+				String reply = (String) inStream.readObject();
+				System.out.println(reply);
+				String request = sc.nextLine();
+				outStream.writeObject(request);
+			}
+			//String reply = (String) inStream.readObject();
+			//System.out.printf("Response %s\n", reply);
 		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (EOFException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
 		try {
 			cSoc.close();
 		} catch (IOException e) {

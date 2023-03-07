@@ -1,0 +1,1 @@
+Consiste na concretização do sistema Tintolmarket, que é um sistema do tipo cliente-servidor.

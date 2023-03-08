@@ -101,7 +101,7 @@ public class TintolmarketServer {
 						user = userCatalog.getUser(clientID);
 						//pode passar para fora se for usado noutro caso, desde que seja devidamente fechado
 						FileWriter fw = new FileWriter(user_database, true);
-					    fw.write(System.getProperty("line.separator") + user.toString() + System.getProperty("line.separator"));
+					    fw.write(System.getProperty("line.separator") + user.toString());
 					    fw.close();
 					} 
 					//verifica se as credenciais do utilizador estão corretas, caso negativo, termina a interação

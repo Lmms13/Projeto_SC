@@ -115,9 +115,10 @@ public class TintolmarketServer {
 						user = userCatalog.getUser(clientID);						
 					}
 					
-					//realiza o ciclo de interação
+					outStream.writeObject("Conexao estabelecida");
+					
+					//realiza o ciclo de interação: menu->pedido do cliente->resposta do servidor
 					while (!socket.isClosed()) {
-						outStream.writeBoolean(true);
 						outStream.writeObject(displayMenu());
 						String request = (String) inStream.readObject();
 						String reply = processRequest(request);
@@ -148,7 +149,7 @@ public class TintolmarketServer {
 			// não pode ser switch porque é preciso usar disjunção e o switch não suporta
 			// seria preciso o dobro das linhas por causa dos sinónimos
 			if (command.equals("add") || command.equals("a")) {
-				// TODO
+				return "fizeste add mpt";
 			} else if (command.equals("sell") || command.equals("s")) {
 				// TODO
 			} else if (command.equals("view") || command.equals("v")) {
@@ -180,10 +181,15 @@ public class TintolmarketServer {
 //	}
 	
 	private String displayMenu() {
-		return("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n "
-				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
-				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
-				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");
+		return(System.getProperty("line.separator") + "Utilizacao:" 
+				+ System.getProperty("line.separator") + "add <wine> <image> OU a <wine> <image>"
+				+ System.getProperty("line.separator") + "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>" 
+				+ System.getProperty("line.separator") + "view <wine> OU v <wine>"
+				+ System.getProperty("line.separator") + "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>" 
+				+ System.getProperty("line.separator") + "wallet OU w"
+				+ System.getProperty("line.separator") + "talk <user> <message> OU t <user> <message>"
+				+ System.getProperty("line.separator") + "read OU r"
+				+ System.getProperty("line.separator"));
 	}
 	
 	private void loadDatabase(UserCatalog catalog, File f) {

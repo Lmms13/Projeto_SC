@@ -51,14 +51,19 @@ public class Tintolmarket {
 			outStream.writeObject(clientID);
 			outStream.writeObject(password);
 			
-			while(inStream.readBoolean()){
-				String reply = (String) inStream.readObject();
+			String reply;
+			String request;
+			
+			//realiza o ciclo de interação: menu->resposta do servidor->pedido do cliente
+			while(true){
+				reply = (String) inStream.readObject();
 				System.out.println(reply);
-				String request = sc.nextLine();
+				reply = (String) inStream.readObject();
+				System.out.println(reply);
+				request = sc.nextLine();
 				outStream.writeObject(request);
 			}
-			//String reply = (String) inStream.readObject();
-			//System.out.printf("Response %s\n", reply);
+
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		} catch (EOFException e) {

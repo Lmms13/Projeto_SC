@@ -1,44 +1,37 @@
 package server;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Scanner;
 
 import domain.User;
 import domain.catalogs.UserCatalog;
 
 public class TintolmarketServer {
 
-	private static final String user_database = "/src/server/files/user_database.txt";
+	private static final String user_database = "./src/server/files/user_database.txt";
 	private UserCatalog userCatalog;
 
 	public static void main(String[] args) throws Exception {
+		//recebe o porto como argumento, usa 12345 como default
 		int port;
 		if (args.length < 1) {
 			port = 12345;
 		} else {
 			port = Integer.valueOf(args[0]);
 		}
-
-		// Load database to memory
-		File f = new File(user_database);
-
-		// Checking if the specified file exists or not
-//        if (f.exists()){
-//        	FileInputStream fileIn = new FileInputStream(user_database);
-//            ObjectInputStream objectIn = new ObjectInputStream(fileIn);
-//           // users = (HashMap<String, User>) objectIn.readObject();
-//            objectIn.close();
-//            System.out.println("The database has been loaded!");
-//        } else {
-//        	users = new HashMap<String, User>();
-//        }
+		
+		//inicializa um novo servidor
 		TintolmarketServer server = new TintolmarketServer();
 		server.startServer(port);
 	}
@@ -47,6 +40,7 @@ public class TintolmarketServer {
 		ServerSocket sSoc = null;
 
 		try {
+			//perguntar ao stor
 			sSoc = new ServerSocket(port);
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
@@ -54,7 +48,8 @@ public class TintolmarketServer {
 		}
 
 		System.out.printf("A escutar o porto %d...\n", port);
-
+		
+		//aceita clientes e inicializa uma thread por cliente
 		while (true) {
 			try {
 				Socket cSoc = sSoc.accept();
@@ -80,7 +75,14 @@ public class TintolmarketServer {
 
 		public void run() {
 			userCatalog = new UserCatalog();
-			// load users
+			
+			File f = new File(user_database);
+			
+			//verifica se o ficheiro existe e carrega o base de dados para memória
+	        if (f.exists()){
+	        	loadDatabase(userCatalog, f);
+	        }
+	        
 			try {
 				ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
@@ -89,28 +91,38 @@ public class TintolmarketServer {
 				String password = null;
 
 				try {
+					//recebe o id e a password do cliente, por essa ordem
 					clientID = (String) inStream.readObject();
 					password = (String) inStream.readObject();
 					
+					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
 					if (!userCatalog.userExists(clientID)) {
 						userCatalog.addUser(clientID, password);
+						user = userCatalog.getUser(clientID);
+						//pode passar para fora se for usado noutro caso, desde que seja devidamente fechado
+						FileWriter fw = new FileWriter(user_database, true);
+					    fw.write(System.getProperty("line.separator") + user.toString() + System.getProperty("line.separator"));
+					    fw.close();
 					} 
+					//verifica se as credenciais do utilizador estão corretas, caso negativo, termina a interação
 					else if(!userCatalog.checkPassword(clientID, password)) {
 						System.out.println("Credenciais erradas");
 						outStream.close();
 						inStream.close();
 						return;
 					}
-					user = userCatalog.getUser(clientID);
+					else {
+						user = userCatalog.getUser(clientID);						
+					}
+					
+					//realiza o ciclo de interação
 					while (!socket.isClosed()) {
 						outStream.writeBoolean(true);
-						outStream.writeObject(displayMenu_());
+						outStream.writeObject(displayMenu());
 						String request = (String) inStream.readObject();
 						String reply = processRequest(request);
 						outStream.writeObject(reply);
 					}
-
-
 					
 				} catch (ClassNotFoundException e1) {
 					e1.printStackTrace();
@@ -152,8 +164,7 @@ public class TintolmarketServer {
 			} else if (command.equals("read") || command.equals("r")) {
 				// TODO
 			} else {
-				System.out.println("Comando incorreto!");
-				displayMenu();
+				return "Comando incorreto!";
 			}
 
 			// depois vê-se
@@ -161,17 +172,41 @@ public class TintolmarketServer {
 		}
 	}
 
-	private void displayMenu() {
-		System.out.println("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n"
+//	private void displayMenu() {
+//		System.out.println("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n"
+//				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
+//				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
+//				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");
+//	}
+	
+	private String displayMenu() {
+		return("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n "
 				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
 				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
 				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");
 	}
 	
-	private String displayMenu_() {
-		return("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n "
-				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
-				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
-				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");
+	private void loadDatabase(UserCatalog catalog, File f) {
+		Scanner fileScanner = null;
+		String[] credentials;
+
+		//cria um scanner para ler o ficheiro
+		try {
+			fileScanner = new Scanner(f);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		//lê o ficheiro linha a linha e adiciona cada usar ao catálogo local
+		while(fileScanner.hasNextLine()) {
+			credentials = fileScanner.nextLine().split(":");
+			catalog.addUser(credentials[0], credentials[1]);  
+		}
+		
+		//impressão para efeitos de teste
+//		for(User u: catalog.getList()) {
+//			System.out.println(u.toString());
+//		}
+		System.out.println("A base de dados foi carregada em memória!");
 	}
 }

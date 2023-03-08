@@ -4,7 +4,7 @@ package domain;
 
 public class Wine {
 	//Image image;
-	Review[] reviews;
-	int stock;
-	int price;
+	private Review[] reviews;
+	private int stock;
+	private int price;
 }

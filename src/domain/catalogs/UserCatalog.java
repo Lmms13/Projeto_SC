@@ -45,5 +45,9 @@ public class UserCatalog {
 		}
 		return null;
 	}
+	
+	public List<User> getList(){
+		return userCatalog;
+	}
 
 }

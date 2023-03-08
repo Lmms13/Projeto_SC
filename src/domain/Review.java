@@ -1,6 +1,6 @@
 package domain;
 
 public class Review {
-	String userId;
-	int rating;
+	private String userId;
+	private int rating;
 }

@@ -3,9 +3,9 @@ package domain;
 import java.util.HashMap;
 
 public class User {
-	String userID;
-	String password;
-	int balance;
+	private String userID;
+	private String password;
+	private  int balance;
 	// HashMap<String, Wine> wines;
 	// HashMap<String, String[]> messages;
 
@@ -17,11 +17,21 @@ public class User {
 		// messages = new HashMap<String, String[]>();
 	}
 
-	public Object getID() {
+	public String getID() {
 		return this.userID;
 	}
 
-	public Object getPassword() {
+	public String getPassword() {
 		return this.password;
 	}
+	
+	public int getBalance() {
+		return this.balance;
+	}
+	
+	public String toString() {
+		return this.userID + ":" + this.password;
+	}
+	
+	
 }

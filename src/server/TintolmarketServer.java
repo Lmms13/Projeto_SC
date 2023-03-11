@@ -238,8 +238,7 @@ public class TintolmarketServer {
 						return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
 								"Imagem: " + w.getImage() + System.getProperty("line.separator") +
 								"Classificacao: " + w.getRating();
-					}
-						
+					}	
 				}
 			} else if (command.equals("buy") || command.equals("b")) {
 				// TODO

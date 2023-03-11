@@ -87,15 +87,6 @@ public class TintolmarketServer {
 		}
 
 		public void run() {
-//			userCatalog = new UserCatalog();
-			
-//			File f = new File(user_database);
-			
-			//verifica se o ficheiro existe e carrega o base de dados para memória
-//	        if (f.exists()){
-//	        	loadDatabase(userCatalog, f);
-//	        }
-	        
 			try {
 				ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
@@ -185,13 +176,6 @@ public class TintolmarketServer {
 			return null;
 		}
 	}
-
-//	private void displayMenu() {
-//		System.out.println("Utilizacao:\n" + "add <wine> <image> OU a <wine> <image>\n"
-//				+ "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>\n" + "view <wine> OU v <wine>\n"
-//				+ "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>\n" + "wallet OU w\n"
-//				+ "talk <user> <message> OU t <user> <message>\n" + "read OU r");
-//	}
 	
 	private String displayMenu() {
 		return(System.getProperty("line.separator") + "Utilizacao:" 

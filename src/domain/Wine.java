@@ -9,7 +9,7 @@ public class Wine {
 	private int rating;
 	private int rating_count;
 	private int stock;
-	private static List<Seller> sellers = new ArrayList<Seller>();
+	private List<Seller> sellers = new ArrayList<Seller>();
 	
 	public Wine(String id, String image) {
 		this.id = id;
@@ -17,7 +17,7 @@ public class Wine {
 		this.rating = 0;
 		this.rating_count = 0;
 		this.stock = 0;
-		sellers = new ArrayList<Seller>();
+		this.sellers = new ArrayList<Seller>();
 	}
 
 	public String getId() {
@@ -55,20 +55,16 @@ public class Wine {
 	}
 	
 	public List<Seller> getSellers(){
-		return sellers;
+		return this.sellers;
 	}
 	
 	public void addSeller(String userId, int price, int amount) {
 		this.stock += amount;
-		sellers.add(new Seller(userId, price, amount)); 
-//		seller.add(userId);
-//		seller.add(Integer.toString(price));
-//		seller.add(Integer.toString(amount));
-//		sellers.add(seller);
+		this.sellers.add(new Seller(userId, price, amount)); 
 	}
 	
 	public Seller getSeller(String userId){
-		for(Seller s: sellers) {
+		for(Seller s: this.sellers) {
 			if(s.getId().equals(userId)) {
 				return s;
 			}
@@ -83,14 +79,26 @@ public class Wine {
 	public String sellersToString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("");
-		for(Seller s: sellers) {
+		for(Seller s: this.sellers) {
 			sb.append(this.sellerToString(s.getId()) + System.getProperty("line.separator"));
 		}
 		return sb.toString();
 	}
 	
+	public String displaySellers() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("");
+		for(Seller s: this.sellers) {
+			sb.append("Utilizador: " + (s.getId() + System.getProperty("line.separator")));
+			sb.append("Preco: " + (s.getPrice() + System.getProperty("line.separator")));
+			sb.append("Quantidade: " + (s.getAmount() + System.getProperty("line.separator")));
+			sb.append(System.getProperty("line.separator"));
+		}
+		return sb.toString();
+	}
+	
 	public String sellerToString(String userId) {
-		for(Seller s: sellers) {
+		for(Seller s: this.sellers) {
 			if(s.getId().equals(userId)) {
 				return id + ":" + s.getId() + ":" + s.getPrice() + ":" + s.getAmount();
 			}
@@ -99,7 +107,7 @@ public class Wine {
 	}
 	
 	public boolean sellerExists(String userId) {
-		for(Seller s: sellers) {
+		for(Seller s: this.sellers) {
 			if(s.getId().equals(userId)) {
 				return true;
 			}
@@ -112,6 +120,10 @@ public class Wine {
 		s.setPrice(price);
 		s.setAmount(amount + s.getAmount());
 		this.addStock(amount); 
+	}
+	
+	public boolean sellersAvailable() {
+		return this.sellers.size() > 0;
 	}
 }
 	

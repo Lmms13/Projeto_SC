@@ -12,6 +12,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Iterator;
 import java.util.Scanner;
 
 import domain.User;
@@ -206,23 +207,44 @@ public class TintolmarketServer {
 						if(w.sellerExists(currentUser.getId())){
 							w.updateSeller(currentUser.getId(), Integer.parseInt(words[2]), Integer.parseInt(words[3]));
 							updateSellerEntry(w.getId(), currentUser.getId());
+							updateWineEntry(w.getId());
 						}
 						else{
 							w.addSeller(currentUser.getId(), Integer.parseInt(words[2]), Integer.parseInt(words[3]));							
 							FileWriter fw = new FileWriter(winesellers_database, true);
 							fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
 							fw.close();
+							updateWineEntry(w.getId());
 						}
 						return "nice";
 					}
 				}
 				
 			} else if (command.equals("view") || command.equals("v")) {
-				// TODO
+				if(!wineCatalog.wineExists(words[1])) {
+					return "cap";
+				}
+				else {
+					Wine w = wineCatalog.getWine(words[1]);
+					if(w.sellersAvailable()) {
+						return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
+								"Imagem: " + w.getImage() + System.getProperty("line.separator") +
+								"Classificacao: " + w.getRating() + System.getProperty("line.separator") +
+								System.getProperty("line.separator") +
+								"Vendedores: " + System.getProperty("line.separator") +
+								w.displaySellers();	
+					}
+					else {
+						return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
+								"Imagem: " + w.getImage() + System.getProperty("line.separator") +
+								"Classificacao: " + w.getRating();
+					}
+						
+				}
 			} else if (command.equals("buy") || command.equals("b")) {
 				// TODO
 			} else if (command.equals("wallet") || command.equals("w")) {
-				return "Tem " + Integer.toString(currentUser.getBalance()) + " € na carteira!";
+				return "Tem " + Integer.toString(currentUser.getBalance()) + " \u20AC na carteira!";
 			} else if (command.equals("classify") || command.equals("c")) {
 				// TODO
 			} else if (command.equals("talk") || command.equals("t")) {
@@ -233,8 +255,7 @@ public class TintolmarketServer {
 				return "Comando incorreto!";
 			}
 
-			// depois vê-se
-			return null;
+			return "cap";
 		}
 	}
 	
@@ -322,11 +343,19 @@ public class TintolmarketServer {
 			e.printStackTrace();
 		}
 		
+		
 	    StringBuffer buffer = new StringBuffer();
+
 	    while (sc.hasNextLine()) {
 	    	line = sc.nextLine();
 	    	words = line.split(":");
-	    	buffer.append(line + System.lineSeparator());
+
+	    	if(!sc.hasNextLine()) {
+	    		buffer.append(line);
+	    	}
+	    	else{
+	    		buffer.append(line + System.getProperty("line.separator"));
+	    	}
 	    	if(words[0].equals(wine) && words[1].equals(seller)) {
 	    		oldLine = line;
 	    	}
@@ -339,26 +368,77 @@ public class TintolmarketServer {
 	    try {
 	    	fw = new FileWriter(sellersDB);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	    
 	    try {
 			fw.append(databaseContent);
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 	    try {
 			fw.flush();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	    try {
 			fw.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	private void updateWineEntry(String wine) {
+		Scanner sc = null;
+		String line;
+		String[] words;
+		String oldLine = "";
+		try {
+			sc = new Scanner(wineDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+	    StringBuffer buffer = new StringBuffer();
+
+	    while (sc.hasNextLine()) {
+	    	line = sc.nextLine();
+	    	words = line.split(":");
+
+	    	if(!sc.hasNextLine()) {
+	    		buffer.append(line);
+	    	}
+	    	else{
+	    		buffer.append(line + System.getProperty("line.separator"));
+	    	}
+	    	if(words[0].equals(wine)) {
+	    		oldLine = line;
+	    	}
+	    }
+	    sc.close();
+	    String databaseContent = buffer.toString();
+	    
+	    databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());
+	    FileWriter fw = null;
+	    try {
+	    	fw = new FileWriter(wineDB);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    
+	    try {
+			fw.append(databaseContent);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	    try {
+			fw.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    try {
+			fw.close();
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

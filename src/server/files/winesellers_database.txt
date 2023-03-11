@@ -1,1 +1,2 @@
-tinto:pedro:10:6
+tinto:pedro:10:60
+branco:pedro:3:2

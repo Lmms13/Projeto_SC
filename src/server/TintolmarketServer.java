@@ -15,13 +15,20 @@ import java.net.Socket;
 import java.util.Scanner;
 
 import domain.User;
+import domain.Wine;
 import domain.catalogs.UserCatalog;
+import domain.catalogs.WineCatalog;
 
 public class TintolmarketServer {
 
 	private static final String user_database = "./src/server/files/user_database.txt";
+	private static final String wine_database = "./src/server/files/wine_database.txt";
+	private static final String winesellers_database = "./src/server/files/winesellers_database.txt";
 	private UserCatalog userCatalog;
-	private File f;
+	private WineCatalog wineCatalog;
+	private File userDB;
+	private File wineDB;
+	private File sellersDB;
 
 	public static void main(String[] args) throws Exception {
 		//recebe o porto como argumento, usa 12345 como default
@@ -50,16 +57,34 @@ public class TintolmarketServer {
 		
 		
 		//verifica se o ficheiro de base de dados de clientes existe.
-		f = new File(user_database);
-		if (!f.exists()){
-			System.out.println("Base de dados de clientes não ecnontrada!");
+		userDB = new File(user_database);
+		if (!userDB.exists()){
+			System.out.println("Base de dados de clientes não encontrada!");
 			return;
         }
 		
-		//Carrega o base de dados para memória
+		//Carrega a base de dados para memória
 		userCatalog = new UserCatalog();
-		loadDatabase();
-
+		loadUserDatabase();
+		
+		//verifica se o ficheiro de base de dados de vinhos existe.
+		wineDB = new File(wine_database);
+		if (!wineDB.exists()){
+			System.out.println("Base de dados de vinhos não encontrada!");
+			return;
+        }
+		
+		//verifica se o ficheiro de base de dados de vendedores existe.
+		sellersDB = new File(winesellers_database);
+		if (!sellersDB.exists()){
+			System.out.println("Base de dados de vendedores não encontrada!");
+			return;
+		}
+		
+		//Carrega a base de dados para memória
+		wineCatalog = new WineCatalog();
+		loadWineDatabase();
+		
 		System.out.printf("A escutar o porto %d...\n", port);
 		
 		//aceita clientes e inicializa uma thread por cliente
@@ -79,7 +104,7 @@ public class TintolmarketServer {
 	class ServerThread extends Thread {
 
 		private Socket socket = null;
-		private User user = null;
+		private User currentUser = null;
 
 		ServerThread(Socket inSoc) {
 			socket = inSoc;
@@ -102,10 +127,10 @@ public class TintolmarketServer {
 					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
 					if (!userCatalog.userExists(clientID)) {
 						userCatalog.addUser(clientID, password);
-						user = userCatalog.getUser(clientID);
+						currentUser = userCatalog.getUser(clientID);
 						//pode passar para fora se for usado noutro caso, desde que seja devidamente fechado
 						FileWriter fw = new FileWriter(user_database, true);
-					    fw.write(System.getProperty("line.separator") + user.toString());
+					    fw.write(System.getProperty("line.separator") + currentUser.toString());
 					    fw.close();
 					} 
 					//verifica se as credenciais do utilizador estão corretas, caso negativo, termina a interação
@@ -116,7 +141,7 @@ public class TintolmarketServer {
 						return;
 					}
 					else {
-						user = userCatalog.getUser(clientID);						
+						currentUser = userCatalog.getUser(clientID);						
 					}
 					
 					outStream.writeObject("Conexao estabelecida");
@@ -153,15 +178,51 @@ public class TintolmarketServer {
 			// não pode ser switch porque é preciso usar disjunção e o switch não suporta
 			// seria preciso o dobro das linhas por causa dos sinónimos
 			if (command.equals("add") || command.equals("a")) {
-				return "fizeste add mpt";
+				if(words.length < 3) {
+					return "cap";
+				}
+				else {
+					if(wineCatalog.wineExists(words[1])) {
+						return "cap";
+					}
+					else {
+						wineCatalog.addWine(words[1], words[2]);
+						FileWriter fw = new FileWriter(wine_database, true);
+					    fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
+					    fw.close();
+					}
+					return "nice";
+				}
 			} else if (command.equals("sell") || command.equals("s")) {
-				// TODO
+				if(words.length < 4) {
+					return "cap";
+				}
+				else {
+					if(!wineCatalog.wineExists(words[1])) {
+						return "cap";
+					}
+					else {
+						Wine w = wineCatalog.getWine(words[1]);
+						if(w.sellerExists(currentUser.getId())){
+							w.updateSeller(currentUser.getId(), Integer.parseInt(words[2]), Integer.parseInt(words[3]));
+							updateSellerEntry(w.getId(), currentUser.getId());
+						}
+						else{
+							w.addSeller(currentUser.getId(), Integer.parseInt(words[2]), Integer.parseInt(words[3]));							
+							FileWriter fw = new FileWriter(winesellers_database, true);
+							fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
+							fw.close();
+						}
+						return "nice";
+					}
+				}
+				
 			} else if (command.equals("view") || command.equals("v")) {
 				// TODO
 			} else if (command.equals("buy") || command.equals("b")) {
 				// TODO
 			} else if (command.equals("wallet") || command.equals("w")) {
-				// TODO
+				return "Tem " + Integer.toString(currentUser.getBalance()) + " € na carteira!";
 			} else if (command.equals("classify") || command.equals("c")) {
 				// TODO
 			} else if (command.equals("talk") || command.equals("t")) {
@@ -189,18 +250,18 @@ public class TintolmarketServer {
 				+ System.getProperty("line.separator"));
 	}
 	
-	private void loadDatabase() {
+	private void loadUserDatabase() {
 		Scanner fileScanner = null;
 		String[] credentials;
 
 		//cria um scanner para ler o ficheiro
 		try {
-			fileScanner = new Scanner(f);
+			fileScanner = new Scanner(userDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 		
-		//lê o ficheiro linha a linha e adiciona cada usar ao catálogo local
+		//lê o ficheiro linha a linha e adiciona cada user ao catálogo local
 		while(fileScanner.hasNextLine()) {
 			credentials = fileScanner.nextLine().split(":");
 			userCatalog.addUser(credentials[0], credentials[1]);  
@@ -210,6 +271,95 @@ public class TintolmarketServer {
 //		for(User u: catalog.getList()) {
 //			System.out.println(u.toString());
 //		}
-		System.out.println("A base de dados foi carregada em memória!");
+		System.out.println("A base de dados de utilizadores foi carregada em memória!");
+	}
+	
+	private void loadWineDatabase() {
+		Scanner wFileScanner = null;
+		Scanner sFileScanner = null;
+		String[] info;
+
+		//cria scanners para ler os ficheiros
+		try {
+			wFileScanner = new Scanner(wineDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		try {
+			sFileScanner = new Scanner(sellersDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		//lê o ficheiro linha a linha e adiciona cada vinho ao catálogo local
+		while(wFileScanner.hasNextLine()) {
+			info = wFileScanner.nextLine().split(":");
+			String[] ratings = info[2].split("/"); 
+			wineCatalog.loadWine(info[0], info[1], Integer.parseInt(ratings[0]), Integer.parseInt(ratings[1]), Integer.parseInt(info[3]));  
+		}
+		
+		//lê o ficheiro linha a linha e liga o vinho ao(s) respetivo(s) utilizador(es) que o(s) vende(m)
+		while(sFileScanner.hasNextLine()) {
+			info = sFileScanner.nextLine().split(":");
+			Wine w = wineCatalog.getWine(info[0]);
+			w.addSeller(info[1], Integer.parseInt(info[2]), Integer.parseInt(info[3]));
+			User u = userCatalog.getUser(info[1]);
+			u.addWine(w.getId(), Integer.parseInt(info[2]), Integer.parseInt(info[3]));
+		}		
+		
+		System.out.println("A base de dados de vinhos foi carregada em memória!");
+	}
+	
+	private void updateSellerEntry(String wine, String seller) {
+		Scanner sc = null;
+		String line;
+		String[] words;
+		String oldLine = "";
+		try {
+			sc = new Scanner(sellersDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+	    StringBuffer buffer = new StringBuffer();
+	    while (sc.hasNextLine()) {
+	    	line = sc.nextLine();
+	    	words = line.split(":");
+	    	buffer.append(line + System.lineSeparator());
+	    	if(words[0].equals(wine) && words[1].equals(seller)) {
+	    		oldLine = line;
+	    	}
+	    }
+	    sc.close();
+	    String databaseContent = buffer.toString();
+	    
+	    databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).sellerToString(seller));
+	    FileWriter fw = null;
+	    try {
+	    	fw = new FileWriter(sellersDB);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	    
+	    try {
+			fw.append(databaseContent);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	    try {
+			fw.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	    try {
+			fw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }

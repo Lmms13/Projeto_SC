@@ -19,7 +19,7 @@ public class UserCatalog {
 
 	public boolean userExists(String id) {
 		for (User u : userCatalog) {
-			if (id.equals(u.getID())) {
+			if (id.equals(u.getId())) {
 				return true;
 			}
 		}
@@ -28,7 +28,7 @@ public class UserCatalog {
 
 	public boolean checkPassword(String id, String password) {
 		for (User u : userCatalog) {
-			if (id.equals(u.getID())) {
+			if (id.equals(u.getId())) {
 				if (password.equals(u.getPassword())) {
 					return true;
 				}
@@ -39,7 +39,7 @@ public class UserCatalog {
 
 	public User getUser(String id) {
 		for (User u : userCatalog) {
-			if (id.equals(u.getID())) {
+			if (id.equals(u.getId())) {
 				return u;
 			}
 		}

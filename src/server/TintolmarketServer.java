@@ -21,6 +21,7 @@ public class TintolmarketServer {
 
 	private static final String user_database = "./src/server/files/user_database.txt";
 	private UserCatalog userCatalog;
+	private File f;
 
 	public static void main(String[] args) throws Exception {
 		//recebe o porto como argumento, usa 12345 como default
@@ -46,6 +47,18 @@ public class TintolmarketServer {
 			System.err.println(e.getMessage());
 			System.exit(-1);
 		}
+		
+		
+		//verifica se o ficheiro de base de dados de clientes existe.
+		f = new File(user_database);
+		if (!f.exists()){
+			System.out.println("Base de dados de clientes não ecnontrada!");
+			return;
+        }
+		
+		//Carrega o base de dados para memória
+		userCatalog = new UserCatalog();
+		loadDatabase();
 
 		System.out.printf("A escutar o porto %d...\n", port);
 		
@@ -74,14 +87,14 @@ public class TintolmarketServer {
 		}
 
 		public void run() {
-			userCatalog = new UserCatalog();
+//			userCatalog = new UserCatalog();
 			
-			File f = new File(user_database);
+//			File f = new File(user_database);
 			
 			//verifica se o ficheiro existe e carrega o base de dados para memória
-	        if (f.exists()){
-	        	loadDatabase(userCatalog, f);
-	        }
+//	        if (f.exists()){
+//	        	loadDatabase(userCatalog, f);
+//	        }
 	        
 			try {
 				ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
@@ -192,7 +205,7 @@ public class TintolmarketServer {
 				+ System.getProperty("line.separator"));
 	}
 	
-	private void loadDatabase(UserCatalog catalog, File f) {
+	private void loadDatabase() {
 		Scanner fileScanner = null;
 		String[] credentials;
 
@@ -206,7 +219,7 @@ public class TintolmarketServer {
 		//lê o ficheiro linha a linha e adiciona cada usar ao catálogo local
 		while(fileScanner.hasNextLine()) {
 			credentials = fileScanner.nextLine().split(":");
-			catalog.addUser(credentials[0], credentials[1]);  
+			userCatalog.addUser(credentials[0], credentials[1]);  
 		}
 		
 		//impressão para efeitos de teste

@@ -124,12 +124,14 @@ public class TintolmarketServer {
 					
 					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
 					if (!userCatalog.userExists(clientID)) {
-						userCatalog.addUser(clientID, password);
-						currentUser = userCatalog.getUser(clientID);
-						//pode passar para fora se for usado noutro caso, desde que seja devidamente fechado
-						FileWriter fw = new FileWriter(user_database, true);
-					    fw.write(System.getProperty("line.separator") + currentUser.toString());
-					    fw.close();
+						synchronized(this){
+							userCatalog.addUser(clientID, password);
+							currentUser = userCatalog.getUser(clientID);
+							//pode passar para fora se for usado noutro caso, desde que seja devidamente fechado
+							FileWriter fw = new FileWriter(user_database, true);
+							fw.write(System.getProperty("line.separator") + currentUser.toString());
+							fw.close();
+						}
 					} 
 					//verifica se as credenciais do utilizador estão corretas, caso negativo, termina a interação
 					else if(!userCatalog.checkPassword(clientID, password)) {
@@ -193,10 +195,12 @@ public class TintolmarketServer {
 						return "O vinho ja existe na base de dados!";
 					}
 					else {
-						wineCatalog.addWine(words[1], words[2]);
-						FileWriter fw = new FileWriter(wine_database, true);
-					    fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
-					    fw.close();
+						synchronized(this){
+							wineCatalog.addWine(words[1], words[2]);
+							FileWriter fw = new FileWriter(wine_database, true);
+							fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
+							fw.close();
+						}
 					}
 					return "Vinho adicionado a base de dados!";
 				}
@@ -216,16 +220,20 @@ public class TintolmarketServer {
 						int price =  Integer.parseInt(words[2]);
 						int quantity =  Integer.parseInt(words[3]);
 						if(w.sellerExists(currentUser.getId())){
-							w.updateSeller(currentUser.getId(), price, quantity);
-							updateSellerEntry(w.getId(), currentUser.getId());
-							updateWineEntry(w.getId());
+							synchronized(this){								
+								w.updateSeller(currentUser.getId(), price, quantity);
+								updateSellerEntry(w.getId(), currentUser.getId());
+								updateWineEntry(w.getId());
+							}
 						}
 						else{
-							w.addSeller(currentUser.getId(), price, quantity);							
-							FileWriter fw = new FileWriter(winesellers_database, true);
-							fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
-							fw.close();
-							updateWineEntry(w.getId());
+							synchronized(this){
+								w.addSeller(currentUser.getId(), price, quantity);							
+								FileWriter fw = new FileWriter(winesellers_database, true);
+								fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
+								fw.close();
+								updateWineEntry(w.getId());
+							}
 						}
 						return "Vinho colocado a venda com sucesso!";
 					}
@@ -285,13 +293,15 @@ public class TintolmarketServer {
 							return "Nao tem dinheiro suficiente na carteira!";
 						}
 						else {
-							w.subtractStock(quantity);
-							u.addBalance(s.getPrice() * quantity);
-							s.setAmount(s.getAmount() - quantity);
-							currentUser.subtractBalance(s.getPrice() * quantity);
-							updateSellerEntry(w.getId(), u.getId());
-							updateWineEntry(w.getId());
-							return "Compra efetuada com sucesso!";
+							synchronized(this){
+								w.subtractStock(quantity);
+								u.addBalance(s.getPrice() * quantity);
+								s.setAmount(s.getAmount() - quantity);
+								currentUser.subtractBalance(s.getPrice() * quantity);
+								updateSellerEntry(w.getId(), u.getId());
+								updateWineEntry(w.getId());
+								return "Compra efetuada com sucesso!";
+							}
 						}
 						
 					}
@@ -315,10 +325,12 @@ public class TintolmarketServer {
 							return "A classificacao tem de ser um inteiro entre 1 e 5";
 						}
 						else {
-							Wine w = wineCatalog.getWine(words[1]);
-							w.updateRating(rating);
-							updateWineEntry(w.getId());
-							return "Classificacao adicionada!";
+							synchronized(this){								
+								Wine w = wineCatalog.getWine(words[1]);
+								w.updateRating(rating);
+								updateWineEntry(w.getId());
+								return "Classificacao adicionada!";
+							}
 						}
 					}					
 				}

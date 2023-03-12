@@ -9,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.Scanner;
 
 import domain.Seller;
@@ -22,11 +23,13 @@ public class TintolmarketServer {
 	private static final String user_database = "./src/server/files/user_database.txt";
 	private static final String wine_database = "./src/server/files/wine_database.txt";
 	private static final String winesellers_database = "./src/server/files/winesellers_database.txt";
+	private static final String inbox_database = "./src/server/files/inbox_database.txt";
 	private UserCatalog userCatalog;
 	private WineCatalog wineCatalog;
 	private File userDB;
 	private File wineDB;
 	private File sellersDB;
+	private File inboxDB;
 
 	public static void main(String[] args) throws Exception {
 		//recebe o porto como argumento, usa 12345 como default
@@ -58,6 +61,13 @@ public class TintolmarketServer {
 		userDB = new File(user_database);
 		if (!userDB.exists()){
 			System.out.println("Base de dados de clientes não encontrada!");
+			return;
+        }
+		
+		//verifica se o ficheiro de base de dados de clientes existe.
+		inboxDB = new File(inbox_database);
+		if (!inboxDB.exists()){
+			System.out.println("Base de dados de caixa de mensagens não encontrada!");
 			return;
         }
 		
@@ -335,15 +345,46 @@ public class TintolmarketServer {
 					}					
 				}
 			} else if (command.equals("talk") || command.equals("t")) {
-				// TODO
+				if(words.length < 3) {
+					return "O comando talk recebe 2 argumentos";
+				}
+				else if(!userCatalog.userExists(words[1])) {
+					return "O utilizador nao existe na base de dados!";	
+				}
+				else {
+					synchronized (this) {					
+						User u = userCatalog.getUser(words[1]);
+						String message = String.join(" ", Arrays.copyOfRange(words, 2, words.length));
+						if(u.hasSender(currentUser.getId())) {
+							u.addMessage(currentUser.getId(), message);
+							updateInboxEntry(u.getId(), currentUser.getId(), message);
+						}
+						else {
+							u.addMessage(currentUser.getId(), message);
+							FileWriter fw = new FileWriter(inbox_database, true);
+							fw.write(System.getProperty("line.separator") + u.getId() + ":" + currentUser.getId() + ":" + message);
+							fw.close();						
+						}
+					}
+					return "Mensagem enviada com sucesso!";
+				}
+				
 			} else if (command.equals("read") || command.equals("r")) {
-				// TODO
+				synchronized (this) {	
+					if(!currentUser.hasMessages()) {
+						return "Nao tem mensagens para ler";
+					}
+					else {
+						String fullInbox = currentUser.displayMessages();
+						currentUser.clearMessages();
+						updateInboxEntry(currentUser.getId(), "none", "none");
+						updateInboxEntry(currentUser.getId(), "none", "none");
+						return fullInbox;
+					}
+				}				
 			} else {
 				return "Comando incorreto!";
 			}
-			
-			//nunca chega aqui
-			return "Ocorreu um erro";
 		}
 	}
 	
@@ -361,21 +402,37 @@ public class TintolmarketServer {
 	}
 	
 	private void loadUserDatabase() {
-		Scanner fileScanner = null;
+		Scanner uFileScanner = null;
+		Scanner iFileScanner = null;
 		String[] credentials;
+		String[] info;
 
 		//cria um scanner para ler o ficheiro
 		try {
-			fileScanner = new Scanner(userDB);
+			uFileScanner = new Scanner(userDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		try {
+			iFileScanner = new Scanner(inboxDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 		
 		//lê o ficheiro linha a linha e adiciona cada user ao catálogo local
-		while(fileScanner.hasNextLine()) {
-			credentials = fileScanner.nextLine().split(":");
+		while(uFileScanner.hasNextLine()) {
+			credentials = uFileScanner.nextLine().split(":");
 			userCatalog.addUser(credentials[0], credentials[1]);  
 		}
+		
+		while(iFileScanner.hasNextLine()) {
+			info = iFileScanner.nextLine().split(":");
+			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
+		}
+		
+		uFileScanner.close();
+		iFileScanner.close();
 		
 		//impressão para efeitos de teste
 //		for(User u: catalog.getList()) {
@@ -415,6 +472,9 @@ public class TintolmarketServer {
 			Wine w = wineCatalog.getWine(info[0]);
 			w.loadSeller(info[1], Integer.parseInt(info[2]), Integer.parseInt(info[3]));
 		}		
+		
+		wFileScanner.close();
+		sFileScanner.close();
 		
 		System.out.println("A base de dados de vinhos foi carregada em memória!");
 	}
@@ -517,6 +577,69 @@ public class TintolmarketServer {
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(wineDB);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    
+	    try {
+			fw.append(databaseContent);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	    try {
+			fw.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    try {
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void updateInboxEntry(String recipient, String sender, String message) {
+		Scanner sc = null;
+		String line;
+		String[] words;
+		String oldLine = "";
+		boolean clear = !userCatalog.getUser(recipient).hasMessages();
+		try {
+			sc = new Scanner(inboxDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+	    StringBuffer buffer = new StringBuffer();
+
+	    while (sc.hasNextLine()) {
+	    	line = sc.nextLine();
+	    	words = line.split(":");
+	    	
+	    	if(words[0].equals(recipient) && clear) {
+	    		continue;
+	    	}
+
+	    	if(!sc.hasNextLine()) {
+	    		buffer.append(line);
+	    	}
+	    	else{
+	    		buffer.append(line + System.getProperty("line.separator"));
+	    	}
+	    	if(words[0].equals(recipient) && words[1].equals(sender)) {
+	    		oldLine = line;
+	    	}
+	    }
+	    sc.close();
+	    String databaseContent = buffer.toString();
+	    
+	    if(!clear) {
+	    	databaseContent = databaseContent.replaceAll(oldLine, oldLine + "#" + message);	    	
+	    }
+	    
+	    FileWriter fw = null;
+	    try {
+	    	fw = new FileWriter(inboxDB);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

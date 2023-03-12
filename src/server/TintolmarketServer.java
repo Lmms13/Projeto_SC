@@ -1,20 +1,17 @@
 package server;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Iterator;
+import java.net.SocketException;
 import java.util.Scanner;
 
+import domain.Seller;
 import domain.User;
 import domain.Wine;
 import domain.catalogs.UserCatalog;
@@ -109,7 +106,7 @@ public class TintolmarketServer {
 
 		ServerThread(Socket inSoc) {
 			socket = inSoc;
-			System.out.println("thread do server para cada cliente");
+			System.out.println("Conexao com cliente estabelecida");
 		}
 
 		public void run() {
@@ -146,13 +143,22 @@ public class TintolmarketServer {
 					}
 					
 					outStream.writeObject("Conexao estabelecida");
+					System.out.println("A comunicar com o utilizador " + currentUser.getId());
 					
 					//realiza o ciclo de interação: menu->pedido do cliente->resposta do servidor
-					while (!socket.isClosed()) {
-						outStream.writeObject(displayMenu());
-						String request = (String) inStream.readObject();
-						String reply = processRequest(request);
-						outStream.writeObject(reply);
+					try {						
+						while (!socket.isClosed()) {
+							outStream.writeObject(displayMenu());
+							String request = (String) inStream.readObject();
+							String reply = processRequest(request);
+							outStream.writeObject(reply);
+						}
+					} catch (SocketException e) {
+						System.out.println("Conexao com cliente terminada");
+						outStream.close();
+						inStream.close();
+						socket.close();
+						return;
 					}
 					
 				} catch (ClassNotFoundException e1) {
@@ -180,11 +186,11 @@ public class TintolmarketServer {
 			// seria preciso o dobro das linhas por causa dos sinónimos
 			if (command.equals("add") || command.equals("a")) {
 				if(words.length < 3) {
-					return "cap";
+					return "O comando add recebe 2 argumentos";
 				}
 				else {
 					if(wineCatalog.wineExists(words[1])) {
-						return "cap";
+						return "O vinho ja existe na base de dados!";
 					}
 					else {
 						wineCatalog.addWine(words[1], words[2]);
@@ -192,60 +198,130 @@ public class TintolmarketServer {
 					    fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
 					    fw.close();
 					}
-					return "nice";
+					return "Vinho adicionado a base de dados!";
 				}
 			} else if (command.equals("sell") || command.equals("s")) {
 				if(words.length < 4) {
-					return "cap";
+					return "O comando sell recebe 3 argumentos";
 				}
 				else {
 					if(!wineCatalog.wineExists(words[1])) {
-						return "cap";
+						return "O vinho nao existe na base de dados!";
+					}
+					else if(!words[2].matches("\\d+") || !words[3].matches("\\d+")){
+						return "O preco e quantidade sao inteiros!";
 					}
 					else {
 						Wine w = wineCatalog.getWine(words[1]);
+						int price =  Integer.parseInt(words[2]);
+						int quantity =  Integer.parseInt(words[3]);
 						if(w.sellerExists(currentUser.getId())){
-							w.updateSeller(currentUser.getId(), Integer.parseInt(words[2]), Integer.parseInt(words[3]));
+							w.updateSeller(currentUser.getId(), price, quantity);
 							updateSellerEntry(w.getId(), currentUser.getId());
 							updateWineEntry(w.getId());
 						}
 						else{
-							w.addSeller(currentUser.getId(), Integer.parseInt(words[2]), Integer.parseInt(words[3]));							
+							w.addSeller(currentUser.getId(), price, quantity);							
 							FileWriter fw = new FileWriter(winesellers_database, true);
 							fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
 							fw.close();
 							updateWineEntry(w.getId());
 						}
-						return "nice";
+						return "Vinho colocado a venda com sucesso!";
 					}
 				}
 				
 			} else if (command.equals("view") || command.equals("v")) {
-				if(!wineCatalog.wineExists(words[1])) {
-					return "cap";
+				if(words.length < 2) {
+					return "O comando view recebe 1 argumento";
+				}
+				else {
+					if(!wineCatalog.wineExists(words[1])) {
+						return "O vinho nao existe na base de dados!";
+					}
+					else {
+						Wine w = wineCatalog.getWine(words[1]);
+						if(w.sellersAvailable()) {
+							return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
+									"Imagem: " + w.getImage() + System.getProperty("line.separator") +
+									"Classificacao: " + w.getRating() + System.getProperty("line.separator") +
+									System.getProperty("line.separator") +
+									"Vendedores: " + System.getProperty("line.separator") +
+									w.displaySellers();	
+						}
+						else {
+							return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
+									"Imagem: " + w.getImage() + System.getProperty("line.separator") +
+									"Classificacao: " + w.getRating();
+						}	
+					}
+				}
+			} else if (command.equals("buy") || command.equals("b")) {
+				if(words.length < 4) {
+					return "O comando buy recebe 3 argumentos";
+				}
+				else if(!wineCatalog.wineExists(words[1])) {
+					return "O vinho nao existe na base de dados!";
+				}
+				else if(!words[3].matches("\\d+")) {
+					return "A quantidade tem de ser um inteiro!";
+				}
+				else if(!userCatalog.userExists(words[2])) {
+					return "O vendedor nao existe na base de dados!";
 				}
 				else {
 					Wine w = wineCatalog.getWine(words[1]);
-					if(w.sellersAvailable()) {
-						return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
-								"Imagem: " + w.getImage() + System.getProperty("line.separator") +
-								"Classificacao: " + w.getRating() + System.getProperty("line.separator") +
-								System.getProperty("line.separator") +
-								"Vendedores: " + System.getProperty("line.separator") +
-								w.displaySellers();	
+					if(!w.sellerExists(words[2])) {
+						return "O utilizador nao esta a vender esse vinho!";
 					}
 					else {
-						return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
-								"Imagem: " + w.getImage() + System.getProperty("line.separator") +
-								"Classificacao: " + w.getRating();
-					}	
+						User u = userCatalog.getUser(words[2]);
+						Seller s = w.getSeller(u.getId());
+						int quantity = Integer.parseInt(words[3]);
+						if(quantity > s.getAmount()) {
+							return "Este vendedor nao vende unidades suficientes";
+						}
+						else if(currentUser.getBalance() < (s.getPrice() * quantity)) {
+							return "Nao tem dinheiro suficiente na carteira!";
+						}
+						else {
+							w.subtractStock(quantity);
+							u.addBalance(s.getPrice() * quantity);
+							s.setAmount(s.getAmount() - quantity);
+							currentUser.subtractBalance(s.getPrice() * quantity);
+							updateSellerEntry(w.getId(), u.getId());
+							updateWineEntry(w.getId());
+							return "Compra efetuada com sucesso!";
+						}
+						
+					}
 				}
-			} else if (command.equals("buy") || command.equals("b")) {
-				// TODO
 			} else if (command.equals("wallet") || command.equals("w")) {
 				return "Tem " + Integer.toString(currentUser.getBalance()) + " \u20AC na carteira!";
 			} else if (command.equals("classify") || command.equals("c")) {
-				// TODO
+				if(words.length < 3) {
+					return "O comando classify recebe 2 argumentos";
+				}
+				else {
+					if(!words[2].matches("\\d+")) {
+						return "A classificacao tem de ser um inteiro entre 1 e 5";
+					}
+					else {
+						int rating = Integer.parseInt(words[2]);
+						if(!wineCatalog.wineExists(words[1])) {
+							return "O vinho nao existe na base de dados!";
+						}
+						else if(rating < 1 || rating > 5) {
+							return "A classificacao tem de ser um inteiro entre 1 e 5";
+						}
+						else {
+							Wine w = wineCatalog.getWine(words[1]);
+							w.updateRating(rating);
+							updateWineEntry(w.getId());
+							return "Classificacao adicionada!";
+						}
+					}					
+				}
 			} else if (command.equals("talk") || command.equals("t")) {
 				// TODO
 			} else if (command.equals("read") || command.equals("r")) {
@@ -253,20 +329,22 @@ public class TintolmarketServer {
 			} else {
 				return "Comando incorreto!";
 			}
-
-			return "cap";
+			
+			//nunca chega aqui
+			return "Ocorreu um erro";
 		}
 	}
 	
 	private String displayMenu() {
 		return(System.getProperty("line.separator") + "Utilizacao:" 
-				+ System.getProperty("line.separator") + "add <wine> <image> OU a <wine> <image>"
-				+ System.getProperty("line.separator") + "sell <wine> <value> <quantity> OU s <wine> <value> <quantity>" 
-				+ System.getProperty("line.separator") + "view <wine> OU v <wine>"
-				+ System.getProperty("line.separator") + "buy <wine> <seller> <quantity> OU b <wine> <seller> <quantity>" 
-				+ System.getProperty("line.separator") + "wallet OU w"
-				+ System.getProperty("line.separator") + "talk <user> <message> OU t <user> <message>"
-				+ System.getProperty("line.separator") + "read OU r"
+				+ System.getProperty("line.separator") + "add <wine> <image>"
+				+ System.getProperty("line.separator") + "sell <wine> <value> <quantity>" 
+				+ System.getProperty("line.separator") + "view <wine>"
+				+ System.getProperty("line.separator") + "buy <wine> <seller> <quantity>" 
+				+ System.getProperty("line.separator") + "wallet"
+				+ System.getProperty("line.separator") + "classify <wine> <stars>"
+				+ System.getProperty("line.separator") + "talk <user> <message>"
+				+ System.getProperty("line.separator") + "read"
 				+ System.getProperty("line.separator"));
 	}
 	
@@ -323,9 +401,7 @@ public class TintolmarketServer {
 		while(sFileScanner.hasNextLine()) {
 			info = sFileScanner.nextLine().split(":");
 			Wine w = wineCatalog.getWine(info[0]);
-			w.addSeller(info[1], Integer.parseInt(info[2]), Integer.parseInt(info[3]));
-			User u = userCatalog.getUser(info[1]);
-			u.addWine(w.getId(), Integer.parseInt(info[2]), Integer.parseInt(info[3]));
+			w.loadSeller(info[1], Integer.parseInt(info[2]), Integer.parseInt(info[3]));
 		}		
 		
 		System.out.println("A base de dados de vinhos foi carregada em memória!");
@@ -336,6 +412,7 @@ public class TintolmarketServer {
 		String line;
 		String[] words;
 		String oldLine = "";
+		int quantity = wineCatalog.getWine(wine).getSeller(seller).getAmount();
 		try {
 			sc = new Scanner(sellersDB);
 		} catch (FileNotFoundException e) {
@@ -348,7 +425,11 @@ public class TintolmarketServer {
 	    while (sc.hasNextLine()) {
 	    	line = sc.nextLine();
 	    	words = line.split(":");
-
+	    	
+	    	if(words[0].equals(wine) && words[1].equals(seller) && quantity == 0) {
+	    		continue;
+	    	}
+	    	
 	    	if(!sc.hasNextLine()) {
 	    		buffer.append(line);
 	    	}
@@ -362,7 +443,10 @@ public class TintolmarketServer {
 	    sc.close();
 	    String databaseContent = buffer.toString();
 	    
-	    databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).sellerToString(seller));
+	    if(quantity != 0) {
+	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).sellerToString(seller));	    		    	
+	    }
+	    
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(sellersDB);

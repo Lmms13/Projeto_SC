@@ -1,2 +1,2 @@
 tinto:pedro:10:60
-branco:pedro:3:2
+branco:pedro:3:10

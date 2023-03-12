@@ -63,6 +63,10 @@ public class Wine {
 		this.sellers.add(new Seller(userId, price, amount)); 
 	}
 	
+	public void loadSeller(String userId, int price, int amount) {
+		this.sellers.add(new Seller(userId, price, amount)); 
+	}
+	
 	public Seller getSeller(String userId){
 		for(Seller s: this.sellers) {
 			if(s.getId().equals(userId)) {

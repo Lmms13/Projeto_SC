@@ -1,25 +1,14 @@
 package domain;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 public class User {
 	private String userId;
 	private String password;
 	private int balance;
-	private List<List<String>> wines;
-	
-	// HashMap<String, Wine> wines;
-	// HashMap<String, String[]> messages;
 
 	public User(String id, String password) {
 		this.userId = id;
 		this.password = password;
-		balance = 200;
-		this.wines = new ArrayList<List<String>>();
-		// wines = new HashMap<String, Wine>();
-		// messages = new HashMap<String, String[]>();
+		this.balance = 200;
 	}
 
 	public String getId() {
@@ -38,13 +27,12 @@ public class User {
 		return this.userId + ":" + this.password;
 	}
 	
-	public void addWine(String id, int price, int amount) {
-		List<String> wine = new ArrayList<String>();
-		wine.add(id);
-		wine.add(Integer.toString(price));
-		wine.add(Integer.toString(amount));
-		wines.add(wine);
+	
+	public void addBalance(int n) {
+		this.balance += n;
 	}
 	
-	
+	public void subtractBalance(int n) {
+		this.balance -= n;
+	}
 }

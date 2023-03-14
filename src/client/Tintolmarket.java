@@ -1,11 +1,21 @@
 package client;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Scanner;
 
 public class Tintolmarket {
@@ -51,11 +61,17 @@ public class Tintolmarket {
 			outStream.writeObject(clientID);
 			outStream.writeObject(password);
 			
-			String reply;
-			String request;
+			String reply = "";
+			String request = "";
 			
 			//realiza o ciclo de interação: menu->resposta do servidor->pedido do cliente
 			while(true){
+				if(request.startsWith("a") || request.startsWith("add")) {
+					sendImage(request, outStream);
+				}
+				else if(request.startsWith("v") || request.startsWith("view")) {
+					receiveImage(request, inStream);
+				}
 				reply = (String) inStream.readObject();
 				System.out.println(reply);
 				reply = (String) inStream.readObject();
@@ -76,5 +92,81 @@ public class Tintolmarket {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private static void sendImage(String request, ObjectOutputStream outStream) {
+		String[] words;
+		File f;
+		FileInputStream fin = null;
+		InputStream input;
+		byte[] buffer;
+		int bytesRead = 0;
+		
+		words = request.split(" ");
+		f = new File("./src/client/images/" + words[2]);
+		if (!f.exists()){
+			System.out.println("Imagem nao encontrada!");
+			return;
+        }
+		
+		try {
+			fin = new FileInputStream(f);
+		} catch (FileNotFoundException e) {e.printStackTrace();}
+		
+		input = new BufferedInputStream(fin);
+		int size = 0;
+		try {
+			size = (int) Files.size(Paths.get("./src/client/images/" + words[2]));
+		} catch (IOException e) {e.printStackTrace();}
+		
+		buffer = new byte[size];
+		try {
+			bytesRead = input.read(buffer);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			outStream.writeInt(bytesRead);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			outStream.writeObject(buffer);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			input.close();
+		} catch (IOException e) {e.printStackTrace();}	
+	}
+	
+	private static void receiveImage(String request, ObjectInputStream inStream) {
+		String[] words;
+		File f;
+		FileOutputStream fout = null;
+		OutputStream output;
+		byte[] buffer;
+		int bytesRead = 0;
+
+		words = request.split(" ");
+		try {
+			bytesRead = inStream.readInt();
+		} catch (IOException e) {e.printStackTrace();}
+		
+		buffer = new byte[bytesRead];
+		try {
+			buffer = (byte[]) inStream.readObject();
+		} catch (ClassNotFoundException | IOException e) {e.printStackTrace();}
+		
+		f = new File("./src/client/images/" + words[1] + ".png");
+		try {
+			fout = new FileOutputStream(f);
+		} catch (FileNotFoundException e) {e.printStackTrace();}
+		
+		output = new BufferedOutputStream(fout);
+		try {
+			output.write(buffer, 0, bytesRead);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			output.close();
+		} catch (IOException e) {e.printStackTrace();}
 	}
 }

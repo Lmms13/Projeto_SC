@@ -1,2 +1,2 @@
-tinto:path:4/3:59
-branco:path2:1/3:10
+tinto:tinto.png:4/3:59
+branco:branco.png:1/3:10

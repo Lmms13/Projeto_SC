@@ -1,14 +1,22 @@
 package server;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -170,12 +178,22 @@ public class TintolmarketServer {
 					outStream.writeObject("Conexao estabelecida");
 					System.out.println("A comunicar com o utilizador " + currentUser.getId());
 					
+					
+					String reply = "";
+					String request = "";
+					
 					//realiza o ciclo de interação: menu->pedido do cliente->resposta do servidor
 					try {						
 						while (!socket.isClosed()) {
 							outStream.writeObject(displayMenu());
-							String request = (String) inStream.readObject();
-							String reply = processRequest(request);
+							request = (String) inStream.readObject();
+							if(request.startsWith("a") || request.startsWith("add")) {
+								receiveImage(request, inStream);
+							}
+							else if(request.startsWith("v") || request.startsWith("view")) {
+								sendImage(request, outStream);
+							}
+							reply = processRequest(request);
 							outStream.writeObject(reply);
 						}
 					} catch (SocketException e) {
@@ -222,7 +240,7 @@ public class TintolmarketServer {
 							wineCatalog.addWine(words[1], words[2]);
 							FileWriter fw = new FileWriter(wine_database, true);
 							fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
-							fw.close();
+							fw.close();						
 						}
 					}
 					return "Vinho adicionado a base de dados!";
@@ -748,5 +766,81 @@ public class TintolmarketServer {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private void sendImage(String request, ObjectOutputStream outStream) {
+		String[] words;
+		File f;
+		FileInputStream fin = null;
+		InputStream input;
+		byte[] buffer;
+		int bytesRead = 0;
+		
+		words = request.split(" ");
+		f = new File("./src/server/images/" + wineCatalog.getWine(words[1]).getImage());
+		if (!f.exists()){
+			System.out.println("Imagem nao encontrada!");
+			return;
+        }
+		
+		try {
+			fin = new FileInputStream(f);
+		} catch (FileNotFoundException e) {e.printStackTrace();}
+		
+		input = new BufferedInputStream(fin);
+		int size = 0;
+		try {
+			size = (int) Files.size(Paths.get("./src/server/images/" + wineCatalog.getWine(words[1]).getImage()));
+		} catch (IOException e) {e.printStackTrace();}
+		
+		buffer = new byte[size];
+		try {
+			bytesRead = input.read(buffer);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			outStream.writeInt(bytesRead);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			outStream.writeObject(buffer);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			input.close();
+		} catch (IOException e) {e.printStackTrace();}	
+	}
+	
+	private void receiveImage(String request, ObjectInputStream inStream) {
+		String[] words;
+		File f;
+		FileOutputStream fout = null;
+		OutputStream output;
+		byte[] buffer;
+		int bytesRead = 0;
+
+		words = request.split(" ");
+		try {
+			bytesRead = inStream.readInt();
+		} catch (IOException e) {e.printStackTrace();}
+		
+		buffer = new byte[bytesRead];
+		try {
+			buffer = (byte[]) inStream.readObject();
+		} catch (ClassNotFoundException | IOException e) {e.printStackTrace();}
+		
+		f = new File("./src/server/images/" + words[2]);
+		try {
+			fout = new FileOutputStream(f);
+		} catch (FileNotFoundException e) {e.printStackTrace();}
+		
+		output = new BufferedOutputStream(fout);
+		try {
+			output.write(buffer, 0, bytesRead);
+		} catch (IOException e) {e.printStackTrace();}
+		
+		try {
+			output.close();
+		} catch (IOException e) {e.printStackTrace();}
 	}
 }

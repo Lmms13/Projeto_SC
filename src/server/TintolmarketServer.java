@@ -24,12 +24,14 @@ public class TintolmarketServer {
 	private static final String wine_database = "./src/server/files/wine_database.txt";
 	private static final String winesellers_database = "./src/server/files/winesellers_database.txt";
 	private static final String inbox_database = "./src/server/files/inbox_database.txt";
+	private static final String balance_database = "./src/server/files/balance_database.txt";
 	private UserCatalog userCatalog;
 	private WineCatalog wineCatalog;
 	private File userDB;
 	private File wineDB;
 	private File sellersDB;
 	private File inboxDB;
+	private File balanceDB;
 
 	public static void main(String[] args) throws Exception {
 		//recebe o porto como argumento, usa 12345 como default
@@ -61,6 +63,13 @@ public class TintolmarketServer {
 		userDB = new File(user_database);
 		if (!userDB.exists()){
 			System.out.println("Base de dados de clientes não encontrada!");
+			return;
+        }
+		
+		//verifica se o ficheiro de base de dados de saldo existe.
+		balanceDB = new File(balance_database);
+		if (!balanceDB.exists()){
+			System.out.println("Base de dados de saldo não encontrada!");
 			return;
         }
 		
@@ -141,6 +150,10 @@ public class TintolmarketServer {
 							FileWriter fw = new FileWriter(user_database, true);
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.close();
+							
+							FileWriter fw1 = new FileWriter(balance_database, true);
+							fw1.write(System.getProperty("line.separator") + currentUser.getId() + ":" + currentUser.getBalance());
+							fw1.close();
 						}
 					} 
 					//verifica se as credenciais do utilizador estão corretas, caso negativo, termina a interação
@@ -310,6 +323,7 @@ public class TintolmarketServer {
 								currentUser.subtractBalance(s.getPrice() * quantity);
 								updateSellerEntry(w.getId(), u.getId());
 								updateWineEntry(w.getId());
+								updateBalanceEntry(u.getId(), currentUser.getId());
 								return "Compra efetuada com sucesso!";
 							}
 						}
@@ -404,12 +418,19 @@ public class TintolmarketServer {
 	private void loadUserDatabase() {
 		Scanner uFileScanner = null;
 		Scanner iFileScanner = null;
+		Scanner bFileScanner = null;
 		String[] credentials;
 		String[] info;
 
 		//cria um scanner para ler o ficheiro
 		try {
 			uFileScanner = new Scanner(userDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		try {
+			bFileScanner = new Scanner(balanceDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
@@ -426,6 +447,11 @@ public class TintolmarketServer {
 			userCatalog.addUser(credentials[0], credentials[1]);  
 		}
 		
+		while(bFileScanner.hasNextLine()) {
+			info = bFileScanner.nextLine().split(":");
+			userCatalog.getUser(info[0]).setBalance(Integer.parseInt(info[1]));
+		}
+		
 		while(iFileScanner.hasNextLine()) {
 			info = iFileScanner.nextLine().split(":");
 			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
@@ -433,6 +459,7 @@ public class TintolmarketServer {
 		
 		uFileScanner.close();
 		iFileScanner.close();
+		bFileScanner.close();
 		
 		//impressão para efeitos de teste
 //		for(User u: catalog.getList()) {
@@ -640,6 +667,68 @@ public class TintolmarketServer {
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(inboxDB);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    
+	    try {
+			fw.append(databaseContent);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	    try {
+			fw.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    try {
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void updateBalanceEntry(String seller, String buyer) {
+		Scanner sc = null;
+		String line;
+		String[] words;
+		String oldLine1 = "";
+		String oldLine2 = "";
+		
+		try {
+			sc = new Scanner(balanceDB);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+	    StringBuffer buffer = new StringBuffer();
+
+	    while (sc.hasNextLine()) {
+	    	line = sc.nextLine();
+	    	words = line.split(":");
+
+	    	if(!sc.hasNextLine()) {
+	    		buffer.append(line);
+	    	}
+	    	else{
+	    		buffer.append(line + System.getProperty("line.separator"));
+	    	}
+	    	if(words[0].equals(seller)) {
+	    		oldLine1 = line;
+	    	}
+	    	if(words[0].equals(buyer)) {
+	    		oldLine2 = line;
+	    	}
+	    }
+	    sc.close();
+	    String databaseContent = buffer.toString();
+	    
+	    databaseContent = databaseContent.replaceAll(oldLine1, seller + ":" + userCatalog.getUser(seller).getBalance());	    	
+	    databaseContent = databaseContent.replaceAll(oldLine2, buyer + ":" + userCatalog.getUser(buyer).getBalance());	    	
+	    
+	    FileWriter fw = null;
+	    try {
+	    	fw = new FileWriter(balanceDB);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

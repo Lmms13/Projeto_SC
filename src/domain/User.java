@@ -42,6 +42,10 @@ public class User {
 		this.balance -= n;
 	}
 	
+	public void setBalance(int n) {
+		this.balance = n;
+	}
+	
 	public void addMessage(String sender, String message) {	
 		if(this.inbox.containsKey(sender)) {
 			this.inbox.get(sender).add(message);

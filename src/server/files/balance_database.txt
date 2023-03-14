@@ -1,0 +1,3 @@
+daguel:100
+pedro:510
+pinto:190

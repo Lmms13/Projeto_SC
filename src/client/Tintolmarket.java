@@ -21,6 +21,8 @@ import java.util.Scanner;
 public class Tintolmarket {
 
 	static Scanner sc = new Scanner(System.in);
+	private static String clientID;
+	private static String password;
 
 	public static void main(String[] args) throws EOFException{
 		if (args.length < 2) {
@@ -36,8 +38,7 @@ public class Tintolmarket {
 				port = Integer.valueOf(serverAddress[1]);
 			}
 		}
-		String clientID = args[1];
-		String password;
+		clientID = args[1];
 		if (args.length > 2) {
 			password = args[2];
 		} else {
@@ -103,7 +104,7 @@ public class Tintolmarket {
 		int bytesRead = 0;
 		
 		words = request.split(" ");
-		f = new File("./src/client/images/" + words[2]);
+		f = new File("./src/client/images/" + clientID + "/" + words[2]);
 		if (!f.exists()){
 			System.out.println("Imagem nao encontrada!");
 			return;
@@ -116,7 +117,7 @@ public class Tintolmarket {
 		input = new BufferedInputStream(fin);
 		int size = 0;
 		try {
-			size = (int) Files.size(Paths.get("./src/client/images/" + words[2]));
+			size = (int) Files.size(Paths.get(f.getPath()));
 		} catch (IOException e) {e.printStackTrace();}
 		
 		buffer = new byte[size];
@@ -140,6 +141,7 @@ public class Tintolmarket {
 	private static void receiveImage(String request, ObjectInputStream inStream) {
 		String[] words;
 		File f;
+		File dir;
 		FileOutputStream fout = null;
 		OutputStream output;
 		byte[] buffer;
@@ -155,7 +157,9 @@ public class Tintolmarket {
 			buffer = (byte[]) inStream.readObject();
 		} catch (ClassNotFoundException | IOException e) {e.printStackTrace();}
 		
-		f = new File("./src/client/images/" + words[1] + ".png");
+		dir = new File("./src/client/images/" + clientID);
+		dir.mkdirs();
+		f = new File(dir.getPath() + "/" + words[1] + ".png");
 		try {
 			fout = new FileOutputStream(f);
 		} catch (FileNotFoundException e) {e.printStackTrace();}

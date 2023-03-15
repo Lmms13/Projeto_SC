@@ -790,7 +790,7 @@ public class TintolmarketServer {
 		input = new BufferedInputStream(fin);
 		int size = 0;
 		try {
-			size = (int) Files.size(Paths.get("./src/server/images/" + wineCatalog.getWine(words[1]).getImage()));
+			size = (int) Files.size(Paths.get(f.getPath()));
 		} catch (IOException e) {e.printStackTrace();}
 		
 		buffer = new byte[size];

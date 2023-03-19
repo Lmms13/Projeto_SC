@@ -59,7 +59,6 @@ public class TintolmarketServer {
 		ServerSocket sSoc = null;
 
 		try {
-			//perguntar ao stor
 			sSoc = new ServerSocket(port);
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
@@ -154,7 +153,7 @@ public class TintolmarketServer {
 						synchronized(this){
 							userCatalog.addUser(clientID, password);
 							currentUser = userCatalog.getUser(clientID);
-							//pode passar para fora se for usado noutro caso, desde que seja devidamente fechado
+							
 							FileWriter fw = new FileWriter(user_database, true);
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.close();
@@ -202,6 +201,8 @@ public class TintolmarketServer {
 						inStream.close();
 						socket.close();
 						return;
+					} catch (Exception e) {
+						e.printStackTrace();
 					}
 					
 				} catch (ClassNotFoundException e1) {
@@ -211,12 +212,9 @@ public class TintolmarketServer {
 				outStream.writeBoolean(false);
 				outStream.close();
 				inStream.close();
-
 				socket.close();
 
-			} catch (IOException | ClassNotFoundException e) {
-				e.printStackTrace();
-			} catch (Exception e) {
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -225,8 +223,6 @@ public class TintolmarketServer {
 			String[] words = request.split(" ");
 			String command = words[0];
 
-			// não pode ser switch porque é preciso usar disjunção e o switch não suporta
-			// seria preciso o dobro das linhas por causa dos sinónimos
 			if (command.equals("add") || command.equals("a")) {
 				if(words.length < 3) {
 					return "O comando add recebe 2 argumentos";
@@ -443,17 +439,7 @@ public class TintolmarketServer {
 		//cria um scanner para ler o ficheiro
 		try {
 			uFileScanner = new Scanner(userDB);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		
-		try {
 			bFileScanner = new Scanner(balanceDB);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		
-		try {
 			iFileScanner = new Scanner(inboxDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -479,10 +465,6 @@ public class TintolmarketServer {
 		iFileScanner.close();
 		bFileScanner.close();
 		
-		//impressão para efeitos de teste
-//		for(User u: catalog.getList()) {
-//			System.out.println(u.toString());
-//		}
 		System.out.println("A base de dados de utilizadores foi carregada em memória!");
 	}
 	
@@ -494,11 +476,6 @@ public class TintolmarketServer {
 		//cria scanners para ler os ficheiros
 		try {
 			wFileScanner = new Scanner(wineDB);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		
-		try {
 			sFileScanner = new Scanner(sellersDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -536,7 +513,6 @@ public class TintolmarketServer {
 			e.printStackTrace();
 		}
 		
-		
 	    StringBuffer buffer = new StringBuffer();
 
 	    while (sc.hasNextLine()) {
@@ -566,26 +542,13 @@ public class TintolmarketServer {
 	    
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(sellersDB);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    
-	    try {
-			fw.append(databaseContent);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-	    try {
-			fw.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    try {
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	    	fw = new FileWriter(balanceDB);
+	    	fw.append(databaseContent);
+	    	fw.flush();
+	    	fw.close();
+	    } catch (IOException e) {
+	    	e.printStackTrace();
+	    }
 	}
 	
 	private void updateWineEntry(String wine) {
@@ -621,26 +584,13 @@ public class TintolmarketServer {
 	    databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(wineDB);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    
-	    try {
-			fw.append(databaseContent);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-	    try {
-			fw.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    try {
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	    	fw = new FileWriter(balanceDB);
+	    	fw.append(databaseContent);
+	    	fw.flush();
+	    	fw.close();
+	    } catch (IOException e) {
+	    	e.printStackTrace();
+	    }    
 	}
 	
 	private void updateInboxEntry(String recipient, String sender, String message) {
@@ -664,7 +614,6 @@ public class TintolmarketServer {
 	    	if(words[0].equals(recipient) && clear) {
 	    		continue;
 	    	}
-
 	    	if(!sc.hasNextLine()) {
 	    		buffer.append(line);
 	    	}
@@ -684,26 +633,13 @@ public class TintolmarketServer {
 	    
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(inboxDB);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    
-	    try {
-			fw.append(databaseContent);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-	    try {
-			fw.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    try {
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	    	fw = new FileWriter(balanceDB);
+	    	fw.append(databaseContent);
+	    	fw.flush();
+	    	fw.close();
+	    } catch (IOException e) {
+	    	e.printStackTrace();
+	    }
 	}
 	
 	private void updateBalanceEntry(String seller, String buyer) {
@@ -747,25 +683,12 @@ public class TintolmarketServer {
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(balanceDB);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    
-	    try {
-			fw.append(databaseContent);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-	    try {
-			fw.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	    try {
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	    	fw.append(databaseContent);
+	    	fw.flush();
+	    	fw.close();
+	    } catch (IOException e) {
+	    	e.printStackTrace();
+	    }
 	}
 	
 	private void sendImage(String request, ObjectOutputStream outStream) {
@@ -781,32 +704,20 @@ public class TintolmarketServer {
 		if (!f.exists()){
 			System.out.println("Imagem nao encontrada!");
 			return;
-        }
-		
+		}
+
 		try {
 			fin = new FileInputStream(f);
-		} catch (FileNotFoundException e) {e.printStackTrace();}
-		
-		input = new BufferedInputStream(fin);
-		int size = 0;
-		try {
+			input = new BufferedInputStream(fin);
+			
+			int size = 0;
 			size = (int) Files.size(Paths.get(f.getPath()));
-		} catch (IOException e) {e.printStackTrace();}
-		
-		buffer = new byte[size];
-		try {
+			buffer = new byte[size];
 			bytesRead = input.read(buffer);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
+			
 			outStream.writeInt(bytesRead);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
 			outStream.writeObject(buffer);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
+
 			input.close();
 		} catch (IOException e) {e.printStackTrace();}	
 	}
@@ -822,25 +733,15 @@ public class TintolmarketServer {
 		words = request.split(" ");
 		try {
 			bytesRead = inStream.readInt();
-		} catch (IOException e) {e.printStackTrace();}
-		
-		buffer = new byte[bytesRead];
-		try {
+			buffer = new byte[bytesRead];
 			buffer = (byte[]) inStream.readObject();
-		} catch (ClassNotFoundException | IOException e) {e.printStackTrace();}
-		
-		f = new File("./src/server/images/" + words[2]);
-		try {
+			
+			f = new File("./src/server/images/" + words[2]);
 			fout = new FileOutputStream(f);
-		} catch (FileNotFoundException e) {e.printStackTrace();}
-		
-		output = new BufferedOutputStream(fout);
-		try {
+			output = new BufferedOutputStream(fout);
 			output.write(buffer, 0, bytesRead);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
+
 			output.close();
-		} catch (IOException e) {e.printStackTrace();}
+		} catch (IOException | ClassNotFoundException e) {e.printStackTrace();}
 	}
 }

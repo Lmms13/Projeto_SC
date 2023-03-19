@@ -5,7 +5,6 @@ import java.io.BufferedOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +12,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Scanner;
@@ -52,8 +50,6 @@ public class Tintolmarket {
 			cSoc = new Socket(host, port);
 			outStream = new ObjectOutputStream(cSoc.getOutputStream());
 			inStream = new ObjectInputStream(cSoc.getInputStream());
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -61,10 +57,10 @@ public class Tintolmarket {
 		try {
 			outStream.writeObject(clientID);
 			outStream.writeObject(password);
-			
+
 			String reply = "";
 			String request = "";
-			
+
 			//realiza o ciclo de interação: menu->resposta do servidor->pedido do cliente
 			while(true){
 				if(request.startsWith("a") || request.startsWith("add")) {
@@ -80,12 +76,7 @@ public class Tintolmarket {
 				request = sc.nextLine();
 				outStream.writeObject(request);
 			}
-
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (EOFException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
 		}
 		try {
@@ -102,40 +93,30 @@ public class Tintolmarket {
 		InputStream input;
 		byte[] buffer;
 		int bytesRead = 0;
-		
+
 		words = request.split(" ");
 		f = new File("./src/client/images/" + clientID + "/" + words[2]);
 		if (!f.exists()){
 			System.out.println("Imagem nao encontrada!");
 			return;
-        }
-		
+		}
+
 		try {
 			fin = new FileInputStream(f);
-		} catch (FileNotFoundException e) {e.printStackTrace();}
-		
-		input = new BufferedInputStream(fin);
-		int size = 0;
-		try {
+			input = new BufferedInputStream(fin);
+			
+			int size = 0;
 			size = (int) Files.size(Paths.get(f.getPath()));
-		} catch (IOException e) {e.printStackTrace();}
-		
-		buffer = new byte[size];
-		try {
+			buffer = new byte[size];
 			bytesRead = input.read(buffer);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
+			
 			outStream.writeInt(bytesRead);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
 			outStream.writeObject(buffer);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
+			
 			input.close();
-		} catch (IOException e) {e.printStackTrace();}	
+		}catch (IOException e) {
+			e.printStackTrace();
+		}	
 	}
 	
 	private static void receiveImage(String request, ObjectInputStream inStream) {
@@ -150,27 +131,20 @@ public class Tintolmarket {
 		words = request.split(" ");
 		try {
 			bytesRead = inStream.readInt();
-		} catch (IOException e) {e.printStackTrace();}
-		
-		buffer = new byte[bytesRead];
-		try {
+			buffer = new byte[bytesRead];
 			buffer = (byte[]) inStream.readObject();
-		} catch (ClassNotFoundException | IOException e) {e.printStackTrace();}
-		
-		dir = new File("./src/client/images/" + clientID);
-		dir.mkdirs();
-		f = new File(dir.getPath() + "/" + words[1] + ".png");
-		try {
+			
+			dir = new File("./src/client/images/" + clientID);
+			dir.mkdirs();
+			f = new File(dir.getPath() + "/" + words[1] + ".png");
+			
 			fout = new FileOutputStream(f);
-		} catch (FileNotFoundException e) {e.printStackTrace();}
-		
-		output = new BufferedOutputStream(fout);
-		try {
+			output = new BufferedOutputStream(fout);
 			output.write(buffer, 0, bytesRead);
-		} catch (IOException e) {e.printStackTrace();}
-		
-		try {
+			
 			output.close();
-		} catch (IOException e) {e.printStackTrace();}
+		} catch (ClassNotFoundException | IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

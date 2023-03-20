@@ -57,6 +57,13 @@ public class Tintolmarket {
 		try {
 			outStream.writeObject(clientID);
 			outStream.writeObject(password);
+			
+			//verifica se o servidor enviou sinal de password incorreta. Se sim, voltar a inserir
+			while(!inStream.readBoolean()) {
+				System.out.println((String) inStream.readObject());
+				password = sc.nextLine();
+				outStream.writeObject(password);
+			}
 
 			String reply = "";
 			String request = "";

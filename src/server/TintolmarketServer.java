@@ -150,6 +150,8 @@ public class TintolmarketServer {
 					
 					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
 					if (!userCatalog.userExists(clientID)) {
+						//indica que nao houve problemas na autenticacao
+						outStream.writeBoolean(true);
 						synchronized(this){
 							userCatalog.addUser(clientID, password);
 							currentUser = userCatalog.getUser(clientID);
@@ -163,20 +165,21 @@ public class TintolmarketServer {
 							fw1.close();
 						}
 					} 
-					//verifica se as credenciais do utilizador estão corretas, caso negativo, termina a interação
-					else if(!userCatalog.checkPassword(clientID, password)) {
-						System.out.println("Credenciais erradas");
-						outStream.close();
-						inStream.close();
-						return;
-					}
 					else {
+						//verifica se as credenciais do utilizador estão corretas, caso negativo, volta a pedi-las	
+						while(!userCatalog.checkPassword(clientID, password)) {
+							//indica que houve problemas na autenticacao
+							outStream.writeBoolean(false);
+							outStream.writeObject("Password incorreta. Insira a password de novo:");
+							password = (String) inStream.readObject();						
+						}
+						//indica que nao houve problemas na autenticacao
+						outStream.writeBoolean(true);
 						currentUser = userCatalog.getUser(clientID);						
 					}
 					
 					outStream.writeObject("Conexao estabelecida");
 					System.out.println("A comunicar com o utilizador " + currentUser.getId());
-					
 					
 					String reply = "";
 					String request = "";
@@ -208,12 +211,10 @@ public class TintolmarketServer {
 				} catch (ClassNotFoundException e1) {
 					e1.printStackTrace();
 				}
-
 				outStream.writeBoolean(false);
 				outStream.close();
 				inStream.close();
 				socket.close();
-
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -542,7 +543,7 @@ public class TintolmarketServer {
 	    
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(balanceDB);
+	    	fw = new FileWriter(sellersDB);
 	    	fw.append(databaseContent);
 	    	fw.flush();
 	    	fw.close();
@@ -584,7 +585,7 @@ public class TintolmarketServer {
 	    databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(balanceDB);
+	    	fw = new FileWriter(wineDB);
 	    	fw.append(databaseContent);
 	    	fw.flush();
 	    	fw.close();
@@ -633,7 +634,7 @@ public class TintolmarketServer {
 	    
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(balanceDB);
+	    	fw = new FileWriter(inboxDB);
 	    	fw.append(databaseContent);
 	    	fw.flush();
 	    	fw.close();

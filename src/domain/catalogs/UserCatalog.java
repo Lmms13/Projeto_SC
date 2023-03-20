@@ -49,12 +49,4 @@ public class UserCatalog {
 	public List<User> getList(){
 		return userCatalog;
 	}
-	
-//	public void loadUser(String id, String password, int balance) {
-//		User u = new User(id, password);
-//		u.subtractBalance(200);
-//		u.addBalance(balance);
-//		userCatalog.add(u);
-//	}
-
 }

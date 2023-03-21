@@ -1,3 +1,9 @@
+/*
+Grupo 31
+Luis Santos 56341
+Pedro Pinto 56369
+Daniel Marques 56379
+*/
 package domain;
 
 import java.util.ArrayList;
@@ -95,5 +101,9 @@ public class User {
 	
 	public boolean hasMessages() {
 		return this.inbox.size() > 0;
+	}
+	
+	public void clearPassword() {
+		this.password = null;
 	}
 }

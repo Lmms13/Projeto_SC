@@ -1,3 +1,9 @@
+/*
+Grupo 31
+Luis Santos 56341
+Pedro Pinto 56369
+Daniel Marques 56379
+*/
 package client;
 
 import java.io.BufferedInputStream;
@@ -14,6 +20,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public class Tintolmarket {
@@ -61,8 +68,12 @@ public class Tintolmarket {
 			//verifica se o servidor enviou sinal de password incorreta. Se sim, voltar a inserir
 			while(!inStream.readBoolean()) {
 				System.out.println((String) inStream.readObject());
-				password = sc.nextLine();
-				outStream.writeObject(password);
+				try {					
+					password = sc.nextLine();
+					outStream.writeObject(password);
+				} catch (NoSuchElementException e) {
+					System.out.println("A encerrar servico...");
+				}
 			}
 
 			String reply = "";
@@ -80,8 +91,12 @@ public class Tintolmarket {
 				System.out.println(reply);
 				reply = (String) inStream.readObject();
 				System.out.println(reply);
-				request = sc.nextLine();
-				outStream.writeObject(request);
+				try {
+					request = sc.nextLine();					
+					outStream.writeObject(request);
+				} catch (NoSuchElementException e) {
+					System.out.println("A encerrar servico...");
+				}
 			}
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();

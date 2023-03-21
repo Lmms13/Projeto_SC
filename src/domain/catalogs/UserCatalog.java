@@ -1,3 +1,9 @@
+/*
+Grupo 31
+Luis Santos 56341
+Pedro Pinto 56369
+Daniel Marques 56379
+*/
 package domain.catalogs;
 
 import java.util.ArrayList;

@@ -1,3 +1,4 @@
 daguel:100
 pedro:510
-pinto:190
+pinto:160
+aulelas:230

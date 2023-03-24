@@ -294,6 +294,7 @@ public class TintolmarketServer {
 								w.addSeller(currentUser.getId(), price, quantity);							
 								FileWriter fw = new FileWriter(winesellers_database, true);
 								fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
+								fw.flush();
 								fw.close();
 								updateWineEntry(w.getId());
 							}
@@ -568,7 +569,7 @@ public class TintolmarketServer {
 	    sc.close();
 	    String databaseContent = buffer.toString();
 	    
-	    if(quantity != 0) {
+	    if(quantity != 0 && oldLine.length() > 0) {
 	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).sellerToString(seller));	    		    	
 	    }
 	    
@@ -580,6 +581,10 @@ public class TintolmarketServer {
 	    try {
 	    	fw = new FileWriter(sellersDB);
 	    	fw.append(databaseContent);
+	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
+	    	if(oldLine.length() == 0 && quantity != 0) {
+	    		fw.append(System.getProperty("line.separator") + wineCatalog.getWine(wine).sellerToString(seller));
+	    	}
 	    	fw.flush();
 	    	fw.close();
 	    } catch (IOException e) {
@@ -617,11 +622,17 @@ public class TintolmarketServer {
 	    sc.close();
 	    String databaseContent = buffer.toString();
 	    
-	    databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());
+	    if(oldLine.length() > 0) {
+	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());	    	
+	    }
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(wineDB);
 	    	fw.append(databaseContent);
+	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
+	        if(oldLine.length() == 0) {
+		    	fw.append(System.getProperty("line.separator") + wineCatalog.getWine(wine).toString());	    	
+		    }
 	    	fw.flush();
 	    	fw.close();
 	    } catch (IOException e) {
@@ -663,8 +674,31 @@ public class TintolmarketServer {
 	    sc.close();
 	    String databaseContent = buffer.toString();
 	    
-	    if(!clear) {
-	    	databaseContent = databaseContent.replaceAll(oldLine, oldLine + "#" + message);	    	
+	    if(!clear && oldLine.length() > 0) {
+	    	System.out.println(message);
+	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
+	    	
+	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
+	    	 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
+	    	 * mais mensagens a essa linha. Se nao houver nenhum '?' numa mensagem 
+	    	 * anterior funciona tudo normalmente*/
+	    	databaseContent = databaseContent.replaceAll(message + "\\?", message);
+	    
+	    	/*tratamento muito especifico do erro explicado em cima, a unica solucao
+	    	 *foi apagar a linha e escrever de novo no fim atraves dos dados em memoria.
+	    	 * Este erro nao afetava a memoria, apenas a base de dados, e a 
+	    	 * ordem nao interessa na base de dados*/
+	    	if(!databaseContent.contains(message)) {
+	    		StringBuilder sb = new StringBuilder();
+	    		String[] lines = databaseContent.split(System.getProperty("line.separator"));
+	    		for(String l : lines) {
+	    			if(!l.contains(oldLine)) {
+	    				sb.append(l + System.getProperty("line.separator"));
+	    			}
+	    		}
+	    		databaseContent = sb.toString();
+	    		oldLine = "";
+	    	}
 	    }
 	    
 	    if(databaseContent.endsWith(System.getProperty("line.separator"))) {
@@ -675,6 +709,11 @@ public class TintolmarketServer {
 	    try {
 	    	fw = new FileWriter(inboxDB);
 	    	fw.append(databaseContent);
+	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
+	    	//tambem e usado para tratar o erro em cima
+	    	if(oldLine.length() == 0 && !clear) {
+	    		fw.append(System.getProperty("line.separator") + userCatalog.getUser(recipient).getMessagesFromSender(sender));
+	    	}
 	    	fw.flush();
 	    	fw.close();
 	    } catch (IOException e) {
@@ -717,13 +756,25 @@ public class TintolmarketServer {
 	    sc.close();
 	    String databaseContent = buffer.toString();
 	    
-	    databaseContent = databaseContent.replaceAll(oldLine1, seller + ":" + userCatalog.getUser(seller).getBalance());	    	
-	    databaseContent = databaseContent.replaceAll(oldLine2, buyer + ":" + userCatalog.getUser(buyer).getBalance());	    	
+	    if(oldLine1.length() > 0) {
+	    	databaseContent = databaseContent.replaceAll(oldLine1, seller + ":" + userCatalog.getUser(seller).getBalance());	    	 	
+	    }
+	    if(oldLine2.length() > 0) {
+	    	databaseContent = databaseContent.replaceAll(oldLine2, buyer + ":" + userCatalog.getUser(buyer).getBalance());	    		    	
+	    }
 	    
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(balanceDB);
 	    	fw.append(databaseContent);
+	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
+	    	if(oldLine1.length() == 0) {
+	    		fw.append(System.getProperty("line.separator") + seller + ":" + userCatalog.getUser(seller).getBalance());
+	    	}
+	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
+	    	if(oldLine2.length() == 0) {
+	    		fw.append(System.getProperty("line.separator") + buyer + ":" + userCatalog.getUser(buyer).getBalance());
+	    	}
 	    	fw.flush();
 	    	fw.close();
 	    } catch (IOException e) {

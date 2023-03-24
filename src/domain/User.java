@@ -106,4 +106,15 @@ public class User {
 	public void clearPassword() {
 		this.password = null;
 	}
+	
+	public String getMessagesFromSender(String sender) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(this.userId + ":" + sender + ":");
+		List<String> messages = inbox.get(sender);
+		for(String message : messages) {
+			sb.append(message + "#");
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		return sb.toString();
+	}
 }

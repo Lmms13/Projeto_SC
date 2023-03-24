@@ -675,7 +675,6 @@ public class TintolmarketServer {
 	    String databaseContent = buffer.toString();
 	    
 	    if(!clear && oldLine.length() > 0) {
-	    	System.out.println(message);
 	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
 	    	
 	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'

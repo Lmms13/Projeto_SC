@@ -194,7 +194,10 @@ public class TintolmarketServer {
 					
 					//limpa a password do cliente em memoria para nao estar em plaintext e
 					//apenas estar disponivel na base de dados, encriptada
-					currentUser.clearPassword();
+					synchronized (this) {
+						currentUser.clearPassword();
+					}
+					password = null;						
 					
 					outStream.writeObject("Conexao estabelecida");
 					System.out.println("A comunicar com o utilizador " + currentUser.getId());
@@ -466,6 +469,12 @@ public class TintolmarketServer {
 			iFileScanner = new Scanner(inboxDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
+		}
+		
+		if(!userCatalog.isEmpty()) {
+			synchronized (this) {
+				userCatalog.clear();				
+			}
 		}
 		
 		//lê o ficheiro linha a linha e adiciona cada user ao catálogo local

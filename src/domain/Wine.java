@@ -12,7 +12,7 @@ import java.util.List;
 public class Wine {
 	private String id;
 	private String image;
-	private int rating;
+	private double rating;
 	private int rating_count;
 	private int stock;
 	private List<Seller> sellers = new ArrayList<Seller>();
@@ -35,7 +35,7 @@ public class Wine {
 	}
 
 	public int getRating() {
-		return this.rating;
+		return (int) this.rating;
 	}
 	
 	public void setRating(int rating, int rating_count) {
@@ -45,7 +45,7 @@ public class Wine {
 
 	public void updateRating(int n) {
 		rating_count++;
-		rating = (rating + n) / rating_count;
+		rating = (rating * (rating_count - 1) + n) / (double) rating_count;
 	}
 
 	public int getStock() {
@@ -83,7 +83,7 @@ public class Wine {
 	}
 	
 	public String toString() {
-		return this.id + ":" + this.image + ":" + this.rating + "/" + this.rating_count + ":" + this.stock; 
+		return this.id + ":" + this.image + ":" + (int) this.rating + "/" + this.rating_count + ":" + this.stock; 
 	}
 	
 	public String sellersToString() {

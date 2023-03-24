@@ -55,4 +55,12 @@ public class UserCatalog {
 	public List<User> getList(){
 		return userCatalog;
 	}
+	
+	public boolean isEmpty() {
+		return userCatalog.size() == 0;
+	}
+	
+	public void clear() {
+		userCatalog.clear();
+	}
 }

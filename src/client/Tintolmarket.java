@@ -35,7 +35,6 @@ public class Tintolmarket {
 			return;
 		}
 		
-		//test
 		String[] serverAddress = args[0].split(":");
 		String host = serverAddress[0];
 		int port = 12345;

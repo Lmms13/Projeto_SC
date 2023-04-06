@@ -34,7 +34,8 @@ public class Tintolmarket {
 			System.out.println("Uso: Tintolmarket <serverAddress>[:port] <userID> [password]");
 			return;
 		}
-
+		
+		//test
 		String[] serverAddress = args[0].split(":");
 		String host = serverAddress[0];
 		int port = 12345;

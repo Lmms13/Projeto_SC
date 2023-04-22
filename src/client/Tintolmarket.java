@@ -22,6 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 public class Tintolmarket {
 
@@ -29,12 +31,17 @@ public class Tintolmarket {
 	private static String clientID;
 	private static String password;
 
-	public static void main(String[] args) throws EOFException{
-		if (args.length < 2) {
-			System.out.println("Uso: Tintolmarket <serverAddress>[:port] <userID> [password]");
+	public static void main(String[] args) throws EOFException {
+		if (args.length != 5) {
+			System.out.println("Uso: Tintolmarket <serverAddress> <truststore> <keystore> <password-keystore> <userID>");
 			return;
 		}
-		
+
+		String truststore;
+		String keyStore;
+		String passwordKeyStore;
+		String userID;
+
 		String[] serverAddress = args[0].split(":");
 		String host = serverAddress[0];
 		int port = 12345;
@@ -43,18 +50,18 @@ public class Tintolmarket {
 				port = Integer.valueOf(serverAddress[1]);
 			}
 		}
-		clientID = args[1];
-		if (args.length > 2) {
-			password = args[2];
-		} else {
-			System.out.print("Insira a sua password: ");
-			password = sc.nextLine();
-		}
-		Socket cSoc = null;
+		truststore = args[1];
+		keyStore = args[2];
+		passwordKeyStore = args[3];
+		userID = args[4];
+		SSLSocket cSoc = null;
 		ObjectInputStream inStream = null;
 		ObjectOutputStream outStream = null;
 		try {
-			cSoc = new Socket(host, port);
+			SSLSocketFactory sslServerSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+			cSoc = (SSLSocket) sslServerSocketFactory.createSocket(host, port);
+			cSoc.startHandshake();
+			System.out.println("Connected to " + host + ":"+ port + "!");
 			outStream = new ObjectOutputStream(cSoc.getOutputStream());
 			inStream = new ObjectInputStream(cSoc.getInputStream());
 		} catch (IOException e) {
@@ -64,11 +71,12 @@ public class Tintolmarket {
 		try {
 			outStream.writeObject(clientID);
 			outStream.writeObject(password);
-			
-			//verifica se o servidor enviou sinal de password incorreta. Se sim, voltar a inserir
-			while(!inStream.readBoolean()) {
+
+			// verifica se o servidor enviou sinal de password incorreta. Se sim, voltar a
+			// inserir
+			while (!inStream.readBoolean()) {
 				System.out.println((String) inStream.readObject());
-				try {					
+				try {
 					password = sc.nextLine();
 					outStream.writeObject(password);
 				} catch (NoSuchElementException e) {
@@ -79,12 +87,11 @@ public class Tintolmarket {
 			String reply = "";
 			String request = "";
 
-			//realiza o ciclo de interação: menu->resposta do servidor->pedido do cliente
-			while(true){
-				if(request.startsWith("a") || request.startsWith("add")) {
+			// realiza o ciclo de interaï¿½ï¿½o: menu->resposta do servidor->pedido do cliente
+			while (true) {
+				if (request.startsWith("a") || request.startsWith("add")) {
 					sendImage(request, outStream);
-				}
-				else if(request.startsWith("v") || request.startsWith("view")) {
+				} else if (request.startsWith("v") || request.startsWith("view")) {
 					receiveImage(request, inStream);
 				}
 				reply = (String) inStream.readObject();
@@ -92,7 +99,7 @@ public class Tintolmarket {
 				reply = (String) inStream.readObject();
 				System.out.println(reply);
 				try {
-					request = sc.nextLine();					
+					request = sc.nextLine();
 					outStream.writeObject(request);
 				} catch (NoSuchElementException e) {
 					System.out.println("A encerrar servico...");
@@ -107,7 +114,7 @@ public class Tintolmarket {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static void sendImage(String request, ObjectOutputStream outStream) {
 		String[] words;
 		File f;
@@ -118,7 +125,7 @@ public class Tintolmarket {
 
 		words = request.split(" ");
 		f = new File("./src/client/images/" + clientID + "/" + words[2]);
-		if (!f.exists()){
+		if (!f.exists()) {
 			System.out.println("Imagem nao encontrada!");
 			return;
 		}
@@ -126,21 +133,21 @@ public class Tintolmarket {
 		try {
 			fin = new FileInputStream(f);
 			input = new BufferedInputStream(fin);
-			
+
 			int size = 0;
 			size = (int) Files.size(Paths.get(f.getPath()));
 			buffer = new byte[size];
 			bytesRead = input.read(buffer);
-			
+
 			outStream.writeInt(bytesRead);
 			outStream.writeObject(buffer);
-			
+
 			input.close();
-		}catch (IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
-		}	
+		}
 	}
-	
+
 	private static void receiveImage(String request, ObjectInputStream inStream) {
 		String[] words;
 		File f;
@@ -155,15 +162,15 @@ public class Tintolmarket {
 			bytesRead = inStream.readInt();
 			buffer = new byte[bytesRead];
 			buffer = (byte[]) inStream.readObject();
-			
+
 			dir = new File("./src/client/images/" + clientID);
 			dir.mkdirs();
 			f = new File(dir.getPath() + "/" + words[1] + ".png");
-			
+
 			fout = new FileOutputStream(f);
 			output = new BufferedOutputStream(fout);
 			output.write(buffer, 0, bytesRead);
-			
+
 			output.close();
 		} catch (ClassNotFoundException | IOException e) {
 			e.printStackTrace();

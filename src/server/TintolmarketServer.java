@@ -25,6 +25,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Scanner;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
 
 import domain.Seller;
 import domain.User;
@@ -50,72 +52,89 @@ public class TintolmarketServer {
 	public static void main(String[] args) throws Exception {
 		//recebe o porto como argumento, usa 12345 como default
 		int port;
-		if (args.length < 1) {
-			port = 12345;
-		} else {
-			port = Integer.valueOf(args[0]);
+		String passwordCifra;
+		String keyStore;
+		String keyStorePassword;
+		if(args.length != 3 && args.length != 4){
+			System.out.println("Uso: TintolmarketServer [port] <password-cifra> <keystore> <password-keystore>");
+			return;
 		}
-		
+
+		if(args.length == 3) {
+			port = 12345;
+			passwordCifra = args[0];
+			keyStore = args[1];
+			keyStorePassword = args[2];
+		} else{
+			port = Integer.valueOf(args[0]);
+			passwordCifra = args[1];
+			keyStore = args[2];
+			keyStorePassword = args[3];
+		}
+
 		//inicializa um novo servidor
 		TintolmarketServer server = new TintolmarketServer();
-		server.startServer(port);
+		server.startServer(port, keyStore, keyStorePassword);
 	}
 
-	public void startServer(int port) {
+	public void startServer(int port, String keyStore, String keyStorePassword) {
 		ServerSocket sSoc = null;
 
 		try {
-			sSoc = new ServerSocket(port);
+			System.setProperty("javax.net.ssl.keyStore", keyStore);
+			System.setProperty("javax.net.ssl.keyStorePassword", keyStorePassword);
+			SSLServerSocketFactory sslServerSocketFactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+			sSoc = (SSLServerSocket) sslServerSocketFactory.createServerSocket(port);
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
 			System.exit(-1);
 		}
-		
+
 		//verifica se o ficheiro de base de dados de clientes existe.
 		userDB = new File(user_database);
 		if (!userDB.exists()){
-			System.out.println("Base de dados de clientes não encontrada!");
+			System.out.println("Base de dados de clientes nï¿½o encontrada!");
 			return;
         }
-		
+
 		//verifica se o ficheiro de base de dados de saldo existe.
 		balanceDB = new File(balance_database);
 		if (!balanceDB.exists()){
-			System.out.println("Base de dados de saldo não encontrada!");
+			System.out.println("Base de dados de saldo nï¿½o encontrada!");
 			return;
         }
-		
+
 		//verifica se o ficheiro de base de dados de clientes existe.
 		inboxDB = new File(inbox_database);
 		if (!inboxDB.exists()){
-			System.out.println("Base de dados de caixa de mensagens não encontrada!");
+			System.out.println("Base de dados de caixa de mensagens nï¿½o encontrada!");
 			return;
         }
-		
-		//Carrega a base de dados para memória
+
+		//Carrega a base de dados para memï¿½ria
 		userCatalog = new UserCatalog();
 		loadUserDatabase();
-		
+
 		//verifica se o ficheiro de base de dados de vinhos existe.
 		wineDB = new File(wine_database);
 		if (!wineDB.exists()){
-			System.out.println("Base de dados de vinhos não encontrada!");
+			System.out.println("Base de dados de vinhos nï¿½o encontrada!");
 			return;
         }
-		
+
 		//verifica se o ficheiro de base de dados de vendedores existe.
 		sellersDB = new File(winesellers_database);
 		if (!sellersDB.exists()){
-			System.out.println("Base de dados de vendedores não encontrada!");
+			System.out.println("Base de dados de vendedores nï¿½o encontrada!");
 			return;
 		}
-		
-		//Carrega a base de dados para memória
+
+		//Carrega a base de dados para memï¿½ria
 		wineCatalog = new WineCatalog();
 		loadWineDatabase();
-		
+
 		System.out.printf("A escutar o porto %d...\n", port);
-		
+
 		//aceita clientes e inicializa uma thread por cliente
 		while (true) {
 			try {
@@ -152,61 +171,61 @@ public class TintolmarketServer {
 					//recebe o id e a password do cliente, por essa ordem
 					clientID = (String) inStream.readObject();
 					password = (String) inStream.readObject();
-					
-					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
+
+					//verifica se o cliente existe, caso negativo, adiciona-o ao catï¿½logo
 					if (!userCatalog.userExists(clientID)) {
 						//indica que nao houve problemas na autenticacao
 						outStream.writeBoolean(true);
 						synchronized(this){
 							userCatalog.addUser(clientID, password);
 							currentUser = userCatalog.getUser(clientID);
-							
+
 							FileWriter fw = new FileWriter(user_database, true);
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.close();
-							
+
 							FileWriter fw1 = new FileWriter(balance_database, true);
 							fw1.write(System.getProperty("line.separator") + currentUser.getId() + ":" + currentUser.getBalance());
 							fw1.close();
 						}
-					} 
+					}
 					else {
-						//verifica se as credenciais do utilizador estão corretas
+						//verifica se as credenciais do utilizador estï¿½o corretas
 						if(!userCatalog.checkPassword(clientID, password)) {
 							//se o user se tinha autenticado, saiu, e agora voltou a autenticar-se
 							//como as passwords sao apagadas da memoria depois da autenticacao
 							//e prciso voltar a carregar os dados para verificar se o cliente escreveu
-							//a password mal ou se e um cliente que esta a retornar antes do servidor se desligar 
+							//a password mal ou se e um cliente que esta a retornar antes do servidor se desligar
 							loadUserDatabase();
-							
-							//se a password ainda for diferente da existente na base de dados, volta a pedi-la	
+
+							//se a password ainda for diferente da existente na base de dados, volta a pedi-la
 							while(!userCatalog.checkPassword(clientID, password)) {
 								//indica que houve problemas na autenticacao
 								outStream.writeBoolean(false);
 								outStream.writeObject("Password incorreta. Insira a password de novo:");
-								password = (String) inStream.readObject();						
+								password = (String) inStream.readObject();
 							}
 						}
 						//indica que nao houve problemas na autenticacao
 						outStream.writeBoolean(true);
-						currentUser = userCatalog.getUser(clientID);						
+						currentUser = userCatalog.getUser(clientID);
 					}
-					
+
 					//limpa a password do cliente em memoria para nao estar em plaintext e
 					//apenas estar disponivel na base de dados, encriptada
 					synchronized (this) {
 						currentUser.clearPassword();
 					}
-					password = null;						
-					
+					password = null;
+
 					outStream.writeObject("Conexao estabelecida");
 					System.out.println("A comunicar com o utilizador " + currentUser.getId());
-					
+
 					String reply = "";
 					String request = "";
-					
-					//realiza o ciclo de interação: menu->pedido do cliente->resposta do servidor
-					try {						
+
+					//realiza o ciclo de interaï¿½ï¿½o: menu->pedido do cliente->resposta do servidor
+					try {
 						while (!socket.isClosed()) {
 							outStream.writeObject(displayMenu());
 							request = (String) inStream.readObject();
@@ -228,7 +247,7 @@ public class TintolmarketServer {
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
-					
+
 				} catch (IOException | ClassNotFoundException e) {
 					System.out.println("Conexao com cliente terminada");
 					outStream.close();
@@ -262,7 +281,7 @@ public class TintolmarketServer {
 							wineCatalog.addWine(words[1], words[2]);
 							FileWriter fw = new FileWriter(wine_database, true);
 							fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
-							fw.close();						
+							fw.close();
 						}
 					}
 					return "Vinho adicionado a base de dados!";
@@ -283,7 +302,7 @@ public class TintolmarketServer {
 						int price =  Integer.parseInt(words[2]);
 						int quantity =  Integer.parseInt(words[3]);
 						if(w.sellerExists(currentUser.getId())){
-							synchronized(this){								
+							synchronized(this){
 								w.updateSeller(currentUser.getId(), price, quantity);
 								updateSellerEntry(w.getId(), currentUser.getId());
 								updateWineEntry(w.getId());
@@ -291,7 +310,7 @@ public class TintolmarketServer {
 						}
 						else{
 							synchronized(this){
-								w.addSeller(currentUser.getId(), price, quantity);							
+								w.addSeller(currentUser.getId(), price, quantity);
 								FileWriter fw = new FileWriter(winesellers_database, true);
 								fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
 								fw.flush();
@@ -302,7 +321,7 @@ public class TintolmarketServer {
 						return "Vinho colocado a venda com sucesso!";
 					}
 				}
-				
+
 			} else if (command.equals("view") || command.equals("v")) {
 				if(words.length < 2) {
 					return "O comando view recebe 1 argumento";
@@ -319,13 +338,13 @@ public class TintolmarketServer {
 									"Classificacao: " + w.getRating() + System.getProperty("line.separator") +
 									System.getProperty("line.separator") +
 									"Vendedores: " + System.getProperty("line.separator") +
-									w.displaySellers();	
+									w.displaySellers();
 						}
 						else {
 							return "---Vinho " + w.getId() + "---" + System.getProperty("line.separator") +
 									"Imagem: " + w.getImage() + System.getProperty("line.separator") +
 									"Classificacao: " + w.getRating();
-						}	
+						}
 					}
 				}
 			} else if (command.equals("buy") || command.equals("b")) {
@@ -368,7 +387,7 @@ public class TintolmarketServer {
 								return "Compra efetuada com sucesso!";
 							}
 						}
-						
+
 					}
 				}
 			} else if (command.equals("wallet") || command.equals("w")) {
@@ -391,24 +410,24 @@ public class TintolmarketServer {
 							return "A classificacao tem de ser um inteiro entre 1 e 5";
 						}
 						else {
-							synchronized(this){								
+							synchronized(this){
 								Wine w = wineCatalog.getWine(words[1]);
 								w.updateRating(rating);
 								updateWineEntry(w.getId());
 								return "Classificacao adicionada!";
 							}
 						}
-					}					
+					}
 				}
 			} else if (command.equals("talk") || command.equals("t")) {
 				if(words.length < 3) {
 					return "O comando talk recebe 2 argumentos";
 				}
 				else if(!userCatalog.userExists(words[1])) {
-					return "O utilizador nao existe na base de dados!";	
+					return "O utilizador nao existe na base de dados!";
 				}
 				else {
-					synchronized (this) {					
+					synchronized (this) {
 						User u = userCatalog.getUser(words[1]);
 						String message = String.join(" ", Arrays.copyOfRange(words, 2, words.length));
 						if(u.hasSender(currentUser.getId())) {
@@ -419,14 +438,14 @@ public class TintolmarketServer {
 							u.addMessage(currentUser.getId(), message);
 							FileWriter fw = new FileWriter(inbox_database, true);
 							fw.write(System.getProperty("line.separator") + u.getId() + ":" + currentUser.getId() + ":" + message);
-							fw.close();						
+							fw.close();
 						}
 					}
 					return "Mensagem enviada com sucesso!";
 				}
-				
+
 			} else if (command.equals("read") || command.equals("r")) {
-				synchronized (this) {	
+				synchronized (this) {
 					if(!currentUser.hasMessages()) {
 						return "Nao tem mensagens para ler";
 					}
@@ -436,26 +455,26 @@ public class TintolmarketServer {
 						updateInboxEntry(currentUser.getId(), "none", "none");
 						return fullInbox;
 					}
-				}				
+				}
 			} else {
 				return "Comando incorreto!";
 			}
 		}
 	}
-	
+
 	private String displayMenu() {
-		return(System.getProperty("line.separator") + "Utilizacao:" 
+		return(System.getProperty("line.separator") + "Utilizacao:"
 				+ System.getProperty("line.separator") + "add <wine> <image>"
-				+ System.getProperty("line.separator") + "sell <wine> <value> <quantity>" 
+				+ System.getProperty("line.separator") + "sell <wine> <value> <quantity>"
 				+ System.getProperty("line.separator") + "view <wine>"
-				+ System.getProperty("line.separator") + "buy <wine> <seller> <quantity>" 
+				+ System.getProperty("line.separator") + "buy <wine> <seller> <quantity>"
 				+ System.getProperty("line.separator") + "wallet"
 				+ System.getProperty("line.separator") + "classify <wine> <stars>"
 				+ System.getProperty("line.separator") + "talk <user> <message>"
 				+ System.getProperty("line.separator") + "read"
 				+ System.getProperty("line.separator"));
 	}
-	
+
 	private void loadUserDatabase() {
 		Scanner uFileScanner = null;
 		Scanner iFileScanner = null;
@@ -471,36 +490,36 @@ public class TintolmarketServer {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
+
 		if(!userCatalog.isEmpty()) {
 			synchronized (this) {
-				userCatalog.clear();				
+				userCatalog.clear();
 			}
 		}
-		
-		//lê o ficheiro linha a linha e adiciona cada user ao catálogo local
+
+		//lï¿½ o ficheiro linha a linha e adiciona cada user ao catï¿½logo local
 		while(uFileScanner.hasNextLine()) {
 			credentials = uFileScanner.nextLine().split(":");
-			userCatalog.addUser(credentials[0], credentials[1]);  
+			userCatalog.addUser(credentials[0], credentials[1]);
 		}
-		
+
 		while(bFileScanner.hasNextLine()) {
 			info = bFileScanner.nextLine().split(":");
 			userCatalog.getUser(info[0]).setBalance(Integer.parseInt(info[1]));
 		}
-		
+
 		while(iFileScanner.hasNextLine()) {
 			info = iFileScanner.nextLine().split(":");
 			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
 		}
-		
+
 		uFileScanner.close();
 		iFileScanner.close();
 		bFileScanner.close();
-		
-		System.out.println("A base de dados de utilizadores foi carregada em memória!");
+
+		System.out.println("A base de dados de utilizadores foi carregada em memï¿½ria!");
 	}
-	
+
 	private void loadWineDatabase() {
 		Scanner wFileScanner = null;
 		Scanner sFileScanner = null;
@@ -513,27 +532,27 @@ public class TintolmarketServer {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
-		//lê o ficheiro linha a linha e adiciona cada vinho ao catálogo local
+
+		//lï¿½ o ficheiro linha a linha e adiciona cada vinho ao catï¿½logo local
 		while(wFileScanner.hasNextLine()) {
 			info = wFileScanner.nextLine().split(":");
-			String[] ratings = info[2].split("/"); 
-			wineCatalog.loadWine(info[0], info[1], Integer.parseInt(ratings[0]), Integer.parseInt(ratings[1]), Integer.parseInt(info[3]));  
+			String[] ratings = info[2].split("/");
+			wineCatalog.loadWine(info[0], info[1], Integer.parseInt(ratings[0]), Integer.parseInt(ratings[1]), Integer.parseInt(info[3]));
 		}
-		
-		//lê o ficheiro linha a linha e liga o vinho ao(s) respetivo(s) utilizador(es) que o(s) vende(m)
+
+		//lï¿½ o ficheiro linha a linha e liga o vinho ao(s) respetivo(s) utilizador(es) que o(s) vende(m)
 		while(sFileScanner.hasNextLine()) {
 			info = sFileScanner.nextLine().split(":");
 			Wine w = wineCatalog.getWine(info[0]);
 			w.loadSeller(info[1], Integer.parseInt(info[2]), Integer.parseInt(info[3]));
-		}		
-		
+		}
+
 		wFileScanner.close();
 		sFileScanner.close();
-		
-		System.out.println("A base de dados de vinhos foi carregada em memória!");
+
+		System.out.println("A base de dados de vinhos foi carregada em memï¿½ria!");
 	}
-	
+
 	private synchronized void updateSellerEntry(String wine, String seller) {
 		Scanner sc = null;
 		String line;
@@ -545,17 +564,17 @@ public class TintolmarketServer {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
+
 	    StringBuffer buffer = new StringBuffer();
 
 	    while (sc.hasNextLine()) {
 	    	line = sc.nextLine();
 	    	words = line.split(":");
-	    	
+
 	    	if(words[0].equals(wine) && words[1].equals(seller) && quantity == 0) {
 	    		continue;
 	    	}
-	    	
+
 	    	if(!sc.hasNextLine()) {
 	    		buffer.append(line);
 	    	}
@@ -568,15 +587,15 @@ public class TintolmarketServer {
 	    }
 	    sc.close();
 	    String databaseContent = buffer.toString();
-	    
+
 	    if(quantity != 0 && oldLine.length() > 0) {
-	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).sellerToString(seller));	    		    	
+	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).sellerToString(seller));
 	    }
-	    
+
 	    if(databaseContent.endsWith(System.getProperty("line.separator"))) {
 	    	databaseContent = databaseContent.replaceAll("(\r\n?|\n)$", "");
 	    }
-	    
+
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(sellersDB);
@@ -591,7 +610,7 @@ public class TintolmarketServer {
 	    	e.printStackTrace();
 	    }
 	}
-	
+
 	private synchronized void updateWineEntry(String wine) {
 		Scanner sc = null;
 		String line;
@@ -602,7 +621,7 @@ public class TintolmarketServer {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
+
 	    StringBuffer buffer = new StringBuffer();
 
 	    while (sc.hasNextLine()) {
@@ -621,9 +640,9 @@ public class TintolmarketServer {
 	    }
 	    sc.close();
 	    String databaseContent = buffer.toString();
-	    
+
 	    if(oldLine.length() > 0) {
-	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());	    	
+	    	databaseContent = databaseContent.replaceAll(oldLine, wineCatalog.getWine(wine).toString());
 	    }
 	    FileWriter fw = null;
 	    try {
@@ -631,15 +650,15 @@ public class TintolmarketServer {
 	    	fw.append(databaseContent);
 	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
 	        if(oldLine.length() == 0) {
-		    	fw.append(System.getProperty("line.separator") + wineCatalog.getWine(wine).toString());	    	
+		    	fw.append(System.getProperty("line.separator") + wineCatalog.getWine(wine).toString());
 		    }
 	    	fw.flush();
 	    	fw.close();
 	    } catch (IOException e) {
 	    	e.printStackTrace();
-	    }    
+	    }
 	}
-	
+
 	private synchronized void updateInboxEntry(String recipient, String sender, String message) {
 		Scanner sc = null;
 		String line;
@@ -651,13 +670,13 @@ public class TintolmarketServer {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
+
 	    StringBuffer buffer = new StringBuffer();
 
 	    while (sc.hasNextLine()) {
 	    	line = sc.nextLine();
 	    	words = line.split(":");
-	    	
+
 	    	if(words[0].equals(recipient) && clear) {
 	    		continue;
 	    	}
@@ -673,19 +692,19 @@ public class TintolmarketServer {
 	    }
 	    sc.close();
 	    String databaseContent = buffer.toString();
-	    
+
 	    if(!clear && oldLine.length() > 0) {
-	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
-	    	
+	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));
+
 	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
 	    	 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
-	    	 * mais mensagens a essa linha. Se nao houver nenhum '?' numa mensagem 
+	    	 * mais mensagens a essa linha. Se nao houver nenhum '?' numa mensagem
 	    	 * anterior funciona tudo normalmente*/
 	    	databaseContent = databaseContent.replaceAll(message + "\\?", message);
-	    
+
 	    	/*tratamento muito especifico do erro explicado em cima, a unica solucao
 	    	 *foi apagar a linha e escrever de novo no fim atraves dos dados em memoria.
-	    	 * Este erro nao afetava a memoria, apenas a base de dados, e a 
+	    	 * Este erro nao afetava a memoria, apenas a base de dados, e a
 	    	 * ordem nao interessa na base de dados*/
 	    	if(!databaseContent.contains(message)) {
 	    		StringBuilder sb = new StringBuilder();
@@ -699,11 +718,11 @@ public class TintolmarketServer {
 	    		oldLine = "";
 	    	}
 	    }
-	    
+
 	    if(databaseContent.endsWith(System.getProperty("line.separator"))) {
 	    	databaseContent = databaseContent.replaceAll("(\r\n?|\n)$", "");
 	    }
-	    
+
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(inboxDB);
@@ -719,20 +738,20 @@ public class TintolmarketServer {
 	    	e.printStackTrace();
 	    }
 	}
-	
+
 	private synchronized void updateBalanceEntry(String seller, String buyer) {
 		Scanner sc = null;
 		String line;
 		String[] words;
 		String oldLine1 = "";
 		String oldLine2 = "";
-		
+
 		try {
 			sc = new Scanner(balanceDB);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
+
 	    StringBuffer buffer = new StringBuffer();
 
 	    while (sc.hasNextLine()) {
@@ -754,14 +773,14 @@ public class TintolmarketServer {
 	    }
 	    sc.close();
 	    String databaseContent = buffer.toString();
-	    
+
 	    if(oldLine1.length() > 0) {
-	    	databaseContent = databaseContent.replaceAll(oldLine1, seller + ":" + userCatalog.getUser(seller).getBalance());	    	 	
+	    	databaseContent = databaseContent.replaceAll(oldLine1, seller + ":" + userCatalog.getUser(seller).getBalance());
 	    }
 	    if(oldLine2.length() > 0) {
-	    	databaseContent = databaseContent.replaceAll(oldLine2, buyer + ":" + userCatalog.getUser(buyer).getBalance());	    		    	
+	    	databaseContent = databaseContent.replaceAll(oldLine2, buyer + ":" + userCatalog.getUser(buyer).getBalance());
 	    }
-	    
+
 	    FileWriter fw = null;
 	    try {
 	    	fw = new FileWriter(balanceDB);
@@ -780,7 +799,7 @@ public class TintolmarketServer {
 	    	e.printStackTrace();
 	    }
 	}
-	
+
 	private void sendImage(String request, ObjectOutputStream outStream) {
 		String[] words;
 		File f;
@@ -788,7 +807,7 @@ public class TintolmarketServer {
 		InputStream input;
 		byte[] buffer;
 		int bytesRead = 0;
-		
+
 		words = request.split(" ");
 		f = new File("./src/server/images/" + wineCatalog.getWine(words[1]).getImage());
 		if (!f.exists()){
@@ -799,19 +818,19 @@ public class TintolmarketServer {
 		try {
 			fin = new FileInputStream(f);
 			input = new BufferedInputStream(fin);
-			
+
 			int size = 0;
 			size = (int) Files.size(Paths.get(f.getPath()));
 			buffer = new byte[size];
 			bytesRead = input.read(buffer);
-			
+
 			outStream.writeInt(bytesRead);
 			outStream.writeObject(buffer);
 
 			input.close();
-		} catch (IOException e) {e.printStackTrace();}	
+		} catch (IOException e) {e.printStackTrace();}
 	}
-	
+
 	private void receiveImage(String request, ObjectInputStream inStream) {
 		String[] words;
 		File f;
@@ -825,7 +844,7 @@ public class TintolmarketServer {
 			bytesRead = inStream.readInt();
 			buffer = new byte[bytesRead];
 			buffer = (byte[]) inStream.readObject();
-			
+
 			f = new File("./src/server/images/" + words[2]);
 			fout = new FileOutputStream(f);
 			output = new BufferedOutputStream(fout);

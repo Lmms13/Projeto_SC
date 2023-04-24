@@ -23,6 +23,10 @@ import java.nio.file.Paths;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+
 public class Tintolmarket {
 
 	static Scanner sc = new Scanner(System.in);
@@ -30,8 +34,11 @@ public class Tintolmarket {
 	private static String password;
 
 	public static void main(String[] args) throws EOFException{
-		if (args.length < 2) {
-			System.out.println("Uso: Tintolmarket <serverAddress>[:port] <userID> [password]");
+		String truststore;
+		String keystorePath;
+		String keystorePassword;
+		if (args.length < 5) {
+			System.out.println("Uso: Tintolmarket <serverAddress>:[port] <truststore> <keystore> <password-keystore> <userID>");
 			return;
 		}
 		
@@ -43,20 +50,35 @@ public class Tintolmarket {
 				port = Integer.valueOf(serverAddress[1]);
 			}
 		}
-		clientID = args[1];
-		if (args.length > 2) {
-			password = args[2];
-		} else {
-			System.out.print("Insira a sua password: ");
-			password = sc.nextLine();
-		}
+		truststore = "./src/client/files/" + args[1];
+		keystorePath = args[2];
+		keystorePassword = args[3];
+		clientID = args[4];
+//		if (args.length > 2) {
+//			password = args[2];
+//		} else {
+//			System.out.print("Insira a sua password: ");
+//			password = sc.nextLine();
+//		}
 		Socket cSoc = null;
 		ObjectInputStream inStream = null;
 		ObjectOutputStream outStream = null;
+//		System.setProperty("javax.net.ssl.keyStore", keystorePath);
+//		System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+		System.setProperty("javax.net.ssl.trustStore", truststore);
+//		System.setProperty("javax.net.ssl.trustStorePassword", "changeit"); 
+
+		SocketFactory sf = SSLSocketFactory.getDefault();
+		SSLSocket s = null;
 		try {
-			cSoc = new Socket(host, port);
-			outStream = new ObjectOutputStream(cSoc.getOutputStream());
-			inStream = new ObjectInputStream(cSoc.getInputStream());
+			s = (SSLSocket) sf.createSocket(host, port);
+			s.startHandshake();
+			//s.startHandshake();
+		//	cSoc = new Socket(host, port);
+//			outStream = new ObjectOutputStream(cSoc.getOutputStream());
+//			inStream = new ObjectInputStream(cSoc.getInputStream());
+			outStream = new ObjectOutputStream(s.getOutputStream());
+			inStream = new ObjectInputStream(s.getInputStream());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

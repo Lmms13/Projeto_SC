@@ -26,6 +26,10 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Scanner;
 
+import javax.net.ServerSocketFactory;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+
 import domain.Seller;
 import domain.User;
 import domain.Wine;
@@ -46,26 +50,51 @@ public class TintolmarketServer {
 	private File sellersDB;
 	private File inboxDB;
 	private File balanceDB;
+	
+	private String cypherPassword;
+	private String keystorePath;
+	private String keystorePassword;
 
 	public static void main(String[] args) throws Exception {
 		//recebe o porto como argumento, usa 12345 como default
 		int port;
-		if (args.length < 1) {
+		String cypherPassword;
+		String keystorePath;
+		String keystorePassword;
+		if (args.length == 3) {
 			port = 12345;
-		} else {
+			cypherPassword = args[0];
+			keystorePath = "./src/server/files/" + args[1];
+			keystorePassword = args[2];
+		} else if(args.length >= 4){ 
 			port = Integer.valueOf(args[0]);
+			cypherPassword = args[1];
+			keystorePath = "./src/server/files/" + args[2];
+			//keystorePath = keystorePath.concat(args[2]);
+			keystorePassword = args[3];
+		}
+		else {
+			System.out.println("Uso: TintolmarketServer <port> <password-cifra> <keystore> <password-keystore>");
+			return;
 		}
 		
+		File fff = new File(keystorePath);
+		File ffff = new File("./keystore.server"); //abddadas		
 		//inicializa um novo servidor
 		TintolmarketServer server = new TintolmarketServer();
-		server.startServer(port);
+		server.startServer(port, cypherPassword, keystorePath, keystorePassword);
 	}
 
-	public void startServer(int port) {
+	public void startServer(int port, String cypherPassword, String keystorePath, String keystorePassword) {
 		ServerSocket sSoc = null;
+		System.setProperty("javax.net.ssl.keyStore", keystorePath);
+		System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+		ServerSocketFactory ssf = SSLServerSocketFactory.getDefault();
+		SSLServerSocket ss =  null;
 
 		try {
-			sSoc = new ServerSocket(port);
+		//	sSoc = new ServerSocket(port);
+			ss =  (SSLServerSocket) ssf.createServerSocket(port);
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
 			System.exit(-1);
@@ -119,7 +148,8 @@ public class TintolmarketServer {
 		//aceita clientes e inicializa uma thread por cliente
 		while (true) {
 			try {
-				Socket cSoc = sSoc.accept();
+				//Socket cSoc = sSoc.accept();
+				Socket cSoc = ss.accept();
 				ServerThread newServerThread = new ServerThread(cSoc);
 				newServerThread.start();
 			} catch (IOException e) {

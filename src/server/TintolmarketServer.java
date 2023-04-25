@@ -34,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -58,6 +59,7 @@ import domain.User;
 import domain.Wine;
 import domain.catalogs.UserCatalog;
 import domain.catalogs.WineCatalog;
+import server.blockchain.BlockchainHandler;
 
 public class TintolmarketServer {
 
@@ -79,7 +81,9 @@ public class TintolmarketServer {
 	private String cypherPassword;
 	private String keystorePath;
 	private String keystorePassword;
-
+	
+	private BlockchainHandler blockchain = new BlockchainHandler();
+	
 	public static void main(String[] args) throws Exception {
 //		File f = new File("./src/toDelete.txt");
 //		FileOutputStream fos = new FileOutputStream(f);
@@ -109,8 +113,8 @@ public class TintolmarketServer {
 			return;
 		}
 		
-		File fff = new File(keystorePath);
-		File ffff = new File("./keystore.server"); //abddadas		
+//		File fff = new File(keystorePath);
+//		File ffff = new File("./keystore.server"); //abddadas		
 		//inicializa um novo servidor
 		TintolmarketServer server = new TintolmarketServer();
 		server.startServer(port, cypherPassword, keystorePath, keystorePassword);
@@ -189,6 +193,16 @@ public class TintolmarketServer {
 		//Carrega a base de dados para memória
 		wineCatalog = new WineCatalog();
 		loadWineDatabase();
+		
+		try {
+			if(blockchain.checkIntegrity()) {
+				blockchain.loadBlockchain();
+			}
+		} catch (UnrecoverableKeyException | InvalidKeyException | NoSuchAlgorithmException | KeyStoreException
+				| CertificateException | ClassNotFoundException | IOException e1) {
+			System.out.println("Ocorreu um erro a aceder a blockchain");
+			e1.printStackTrace();
+		}	
 		
 		System.out.printf("A escutar o porto %d...\n", port);
 		
@@ -299,12 +313,15 @@ public class TintolmarketServer {
 							signature.initVerify(pk);
 							signature.update(clientNonceBytes);
 							outStream.writeObject(signature.verify(clientSignature));
+							
+							currentUser = userCatalog.getUser(clientID);
+
 						}
 					}
 					
-					if(true) {
-						return;
-					}
+//					if(true) {
+//						return;
+//					}
 					
 					
 					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
@@ -453,6 +470,9 @@ public class TintolmarketServer {
 								updateWineEntry(w.getId());
 							}
 						}
+						synchronized (this) {
+							blockchain.newTransaction(w.getId() + ":" + quantity + ":" + price + ":" + currentUser.getId());							
+						}
 						return "Vinho colocado a venda com sucesso!";
 					}
 				}
@@ -519,6 +539,9 @@ public class TintolmarketServer {
 								updateSellerEntry(w.getId(), u.getId());
 								updateWineEntry(w.getId());
 								updateBalanceEntry(u.getId(), currentUser.getId());
+								
+								blockchain.newTransaction(w.getId() + ":" + quantity + ":" + s.getPrice() + ":" + currentUser.getId());							
+								
 								return "Compra efetuada com sucesso!";
 							}
 						}
@@ -591,6 +614,9 @@ public class TintolmarketServer {
 						return fullInbox;
 					}
 				}				
+			} else if (command.equals("list") || command.equals("l")){
+				return "Lista de todas as transacoes:" + System.getProperty("line.separator") + blockchain.getList();
+				
 			} else {
 				return "Comando incorreto!";
 			}
@@ -607,6 +633,7 @@ public class TintolmarketServer {
 				+ System.getProperty("line.separator") + "classify <wine> <stars>"
 				+ System.getProperty("line.separator") + "talk <user> <message>"
 				+ System.getProperty("line.separator") + "read"
+				+ System.getProperty("line.separator") + "list"
 				+ System.getProperty("line.separator"));
 	}
 	

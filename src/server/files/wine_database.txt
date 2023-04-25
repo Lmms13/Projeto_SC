@@ -1,3 +1,3 @@
 tinto:tinto.png:4/3:20
-branco:branco.png:1/3:10
+branco:branco.png:1/3:18
 rose:rose.png:0/0:5

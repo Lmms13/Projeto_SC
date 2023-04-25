@@ -46,7 +46,7 @@ public class Tintolmarket {
 	private static String password;
 
 	public static void main(String[] args) throws EOFException{
-		String truststore;
+		String truststorePath;
 		String keystorePath;
 		String keystorePassword;
 		if (args.length < 5) {
@@ -62,7 +62,7 @@ public class Tintolmarket {
 				port = Integer.valueOf(serverAddress[1]);
 			}
 		}
-		truststore = "./src/client/files/" + args[1];
+		truststorePath = "./src/client/files/" + args[1];
 		keystorePath = "./src/client/files/" + args[2];
 		keystorePassword = args[3];
 		clientID = args[4];
@@ -77,7 +77,7 @@ public class Tintolmarket {
 		ObjectOutputStream outStream = null;
 //		System.setProperty("javax.net.ssl.keyStore", keystorePath);
 //		System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
-		System.setProperty("javax.net.ssl.trustStore", truststore);
+		System.setProperty("javax.net.ssl.trustStore", truststorePath);
 //		System.setProperty("javax.net.ssl.trustStorePassword", "changeit"); 
 
 		SocketFactory sf = SSLSocketFactory.getDefault();

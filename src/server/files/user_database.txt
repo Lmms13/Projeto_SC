@@ -1,4 +1,5 @@
-daguel:pedro1234
-pedro:pass123
-pinto:pass124
-aulelas:56363
+daguel:./src/server/files/daguel.cer
+pedro:./src/server/files/pedro.cer
+pinto:./src/server/files/pinto.cer
+aulelas:./src/server/files/aulelas.cer
+rodolfo:./src/server/files/rodolfo.cer

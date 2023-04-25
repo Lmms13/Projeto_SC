@@ -18,11 +18,23 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+import javax.crypto.SecretKey;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -51,7 +63,7 @@ public class Tintolmarket {
 			}
 		}
 		truststore = "./src/client/files/" + args[1];
-		keystorePath = args[2];
+		keystorePath = "./src/client/files/" + args[2];
 		keystorePassword = args[3];
 		clientID = args[4];
 //		if (args.length > 2) {
@@ -60,7 +72,7 @@ public class Tintolmarket {
 //			System.out.print("Insira a sua password: ");
 //			password = sc.nextLine();
 //		}
-		Socket cSoc = null;
+		//Socket cSoc = null;
 		ObjectInputStream inStream = null;
 		ObjectOutputStream outStream = null;
 //		System.setProperty("javax.net.ssl.keyStore", keystorePath);
@@ -72,7 +84,7 @@ public class Tintolmarket {
 		SSLSocket s = null;
 		try {
 			s = (SSLSocket) sf.createSocket(host, port);
-			s.startHandshake();
+			//s.startHandshake();
 			//s.startHandshake();
 		//	cSoc = new Socket(host, port);
 //			outStream = new ObjectOutputStream(cSoc.getOutputStream());
@@ -85,18 +97,65 @@ public class Tintolmarket {
 
 		try {
 			outStream.writeObject(clientID);
-			outStream.writeObject(password);
+			
+			//long nonce = inStream.readLong();
+			long nonce = (long) inStream.readObject();
+			boolean isRegistered = (boolean) inStream.readObject();
+			
+			System.out.println("here");
+			if(!isRegistered) {
+				KeyStore keystore = KeyStore.getInstance("JCEKS");
+				FileInputStream keystore_fis = new FileInputStream(keystorePath);
+				keystore.load(keystore_fis, keystorePassword.toCharArray());
+				PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+				Signature signature = Signature.getInstance("MD5withRSA");
+				Certificate cert = keystore.getCertificate(clientID);
+				signature.initSign(key);
+				ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+			    buffer.putLong(nonce);
+			    byte nonceBytes[] = buffer.array();
+				signature.update(nonceBytes);
+				outStream.writeLong(nonce);
+				outStream.writeObject(nonceBytes);
+				outStream.writeObject(signature.sign());
+				outStream.writeObject(cert);
+				
+			}
+			else {
+				KeyStore keystore = KeyStore.getInstance("JCEKS");
+				FileInputStream keystore_fis = new FileInputStream(keystorePath);
+				keystore.load(keystore_fis, keystorePassword.toCharArray());
+				PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+				Signature signature = Signature.getInstance("MD5withRSA");
+				signature.initSign(key);
+				ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+			    buffer.putLong(nonce);
+			    byte nonceBytes[] = buffer.array();
+				signature.update(nonceBytes);
+				outStream.writeLong(nonce);
+				outStream.writeObject(nonceBytes);
+				outStream.writeObject(signature.sign());
+			}
+			
+			if(!(boolean)inStream.readObject()) {
+				System.out.println("Ocorreu um erro na autenticacao");
+				return;
+			}
+			else {
+				System.out.println("Autenticacao bem sucedida");
+			}
+			//outStream.writeObject(password);
 			
 			//verifica se o servidor enviou sinal de password incorreta. Se sim, voltar a inserir
-			while(!inStream.readBoolean()) {
-				System.out.println((String) inStream.readObject());
-				try {					
-					password = sc.nextLine();
-					outStream.writeObject(password);
-				} catch (NoSuchElementException e) {
-					System.out.println("A encerrar servico...");
-				}
-			}
+//			while(!inStream.readBoolean()) {
+//				System.out.println((String) inStream.readObject());
+//				try {					
+//					password = sc.nextLine();
+//					outStream.writeObject(password);
+//				} catch (NoSuchElementException e) {
+//					System.out.println("A encerrar servico...");
+//				}
+//			}
 
 			String reply = "";
 			String request = "";
@@ -120,11 +179,11 @@ public class Tintolmarket {
 					System.out.println("A encerrar servico...");
 				}
 			}
-		} catch (IOException | ClassNotFoundException e) {
+		} catch (IOException | ClassNotFoundException | KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException | InvalidKeyException | SignatureException e) {
 			e.printStackTrace();
 		}
 		try {
-			cSoc.close();
+			s.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -8,6 +8,8 @@ package server;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -23,9 +25,30 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.AlgorithmParameters;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Scanner;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -50,12 +73,20 @@ public class TintolmarketServer {
 	private File sellersDB;
 	private File inboxDB;
 	private File balanceDB;
+	private File encryptedUserDB;
+	private File decryptedUserDB;
 	
 	private String cypherPassword;
 	private String keystorePath;
 	private String keystorePassword;
 
 	public static void main(String[] args) throws Exception {
+//		File f = new File("./src/toDelete.txt");
+//		FileOutputStream fos = new FileOutputStream(f);
+//		fos.write("yoooo".getBytes());
+//		fos.flush();
+//		fos.close();
+//		f.delete();
 		//recebe o porto como argumento, usa 12345 como default
 		int port;
 		String cypherPassword;
@@ -86,6 +117,9 @@ public class TintolmarketServer {
 	}
 
 	public void startServer(int port, String cypherPassword, String keystorePath, String keystorePassword) {
+		this.cypherPassword = cypherPassword;
+		this.keystorePath = keystorePath;
+		this.keystorePassword = keystorePassword;
 		ServerSocket sSoc = null;
 		System.setProperty("javax.net.ssl.keyStore", keystorePath);
 		System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
@@ -107,6 +141,15 @@ public class TintolmarketServer {
 			return;
         }
 		
+		encryptedUserDB = new File("./src/server/files/user_database.cif");
+		if (!encryptedUserDB.exists()){
+			System.out.println("Base de dados de clientes cifrada não encontrada!");
+			return;
+		}
+		
+		decryptedUserDB = new File("./src/server/files/new_user_database.txt");
+		
+		startEncryptUserDatabase();
 		//verifica se o ficheiro de base de dados de saldo existe.
 		balanceDB = new File(balance_database);
 		if (!balanceDB.exists()){
@@ -123,7 +166,11 @@ public class TintolmarketServer {
 		
 		//Carrega a base de dados para memória
 		userCatalog = new UserCatalog();
+		//decryptedUserDB = NEW fILE
+		decyptUserDatabase();
 		loadUserDatabase();
+		encryptUserDatabase();
+		decryptedUserDB.delete();
 		
 		//verifica se o ficheiro de base de dados de vinhos existe.
 		wineDB = new File(wine_database);
@@ -177,57 +224,134 @@ public class TintolmarketServer {
 
 				String clientID = null;
 				String password = null;
+				
+//				encryptUserDatabase();
+//				decyptUserDatabase();
 
 				try {
 					//recebe o id e a password do cliente, por essa ordem
 					clientID = (String) inStream.readObject();
-					password = (String) inStream.readObject();
+				//	password = (String) inStream.readObject();
+					long nonce = new Random().nextLong();
+					outStream.writeObject(nonce);
+					//outStream.writeLong(nonce);
 					
-					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
-					if (!userCatalog.userExists(clientID)) {
-						//indica que nao houve problemas na autenticacao
-						outStream.writeBoolean(true);
-						synchronized(this){
-							userCatalog.addUser(clientID, password);
+					outStream.writeObject(userCatalog.userExists(clientID));
+//					outStream.writeBoolean(userCatalog.userExists(clientID));
+					
+					//System.out.println("gaz");
+					long clientNonce = inStream.readLong();
+					byte[] clientNonceBytes = (byte[]) inStream.readObject();
+					byte[] clientSignature = (byte[]) inStream.readObject();
+					
+					if(!userCatalog.userExists(clientID)) {
+//						long clientNonce = inStream.readLong();
+//						byte[] clientNonceBytes = (byte[]) inStream.readObject();
+//						byte[] clientSignature = (byte[]) inStream.readObject();
+						Certificate clientCert = (Certificate) inStream.readObject();
+						File f = new File("./src/server/files/" + clientID + ".cer");
+						byte[] buf = clientCert.getEncoded();
+						FileOutputStream fos = new FileOutputStream(f);
+						fos.write(buf);
+						fos.close();
+						if(nonce == clientNonce) {
+//							KeyStore keystore = KeyStore.getInstance("JCEKS");
+//							FileInputStream keystore_fis = new FileInputStream(keystorePath);
+//							keystore.load(keystore_fis, keystorePassword.toCharArray());
+							PublicKey pk = clientCert.getPublicKey();
+							Signature signature = Signature.getInstance("MD5withRSA");
+							signature.initVerify(pk);
+							signature.update(clientNonceBytes);
+							outStream.writeObject(signature.verify(clientSignature));
+							
+							userCatalog.addUser(clientID, "./src/server/files/" + clientID + ".cer");
 							currentUser = userCatalog.getUser(clientID);
 							
-							FileWriter fw = new FileWriter(user_database, true);
+							decyptUserDatabase();
+							FileWriter fw = new FileWriter(decryptedUserDB, true);
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.close();
+							decryptedUserDB.delete();
 							
 							FileWriter fw1 = new FileWriter(balance_database, true);
 							fw1.write(System.getProperty("line.separator") + currentUser.getId() + ":" + currentUser.getBalance());
 							fw1.close();
-						}
-					} 
-					else {
-						//verifica se as credenciais do utilizador estão corretas
-						if(!userCatalog.checkPassword(clientID, password)) {
-							//se o user se tinha autenticado, saiu, e agora voltou a autenticar-se
-							//como as passwords sao apagadas da memoria depois da autenticacao
-							//e prciso voltar a carregar os dados para verificar se o cliente escreveu
-							//a password mal ou se e um cliente que esta a retornar antes do servidor se desligar 
-							loadUserDatabase();
+							encryptUserDatabase();
 							
-							//se a password ainda for diferente da existente na base de dados, volta a pedi-la	
-							while(!userCatalog.checkPassword(clientID, password)) {
-								//indica que houve problemas na autenticacao
-								outStream.writeBoolean(false);
-								outStream.writeObject("Password incorreta. Insira a password de novo:");
-								password = (String) inStream.readObject();						
-							}
 						}
-						//indica que nao houve problemas na autenticacao
-						outStream.writeBoolean(true);
-						currentUser = userCatalog.getUser(clientID);						
 					}
+					else {
+//						long clientNonce = inStream.readLong();
+//						byte[] clientNonceBytes = (byte[]) inStream.readObject();
+//						byte[] clientSignature = (byte[]) inStream.readObject();
+						if(nonce == clientNonce) {
+							File f = new File("./src/server/files/" + clientID + ".cer");
+							FileInputStream fis = new FileInputStream(f);
+							//byte[] buf = fis.read();
+							CertificateFactory cf = CertificateFactory.getInstance("X509");
+							Certificate cert = cf.generateCertificate(fis);
+//							KeyStore keystore = KeyStore.getInstance("JCEKS");
+//							FileInputStream keystore_fis = new FileInputStream(keystorePath);
+//							keystore.load(keystore_fis, keystorePassword.toCharArray());
+//							Certificate cert = keystore.getCertificate(clientID);
+							PublicKey pk = cert.getPublicKey();
+							Signature signature = Signature.getInstance("MD5withRSA");
+							signature.initVerify(pk);
+							signature.update(clientNonceBytes);
+							outStream.writeObject(signature.verify(clientSignature));
+						}
+					}
+					
+					if(true) {
+						return;
+					}
+					
+					
+					//verifica se o cliente existe, caso negativo, adiciona-o ao catálogo
+//					if (!userCatalog.userExists(clientID)) {
+//						//indica que nao houve problemas na autenticacao
+//						outStream.writeBoolean(true);
+//						synchronized(this){
+//							userCatalog.addUser(clientID, password);
+//							currentUser = userCatalog.getUser(clientID);
+//							
+//							FileWriter fw = new FileWriter(user_database, true);
+//							fw.write(System.getProperty("line.separator") + currentUser.toString());
+//							fw.close();
+//							
+//							FileWriter fw1 = new FileWriter(balance_database, true);
+//							fw1.write(System.getProperty("line.separator") + currentUser.getId() + ":" + currentUser.getBalance());
+//							fw1.close();
+//						}
+//					} 
+//					else {
+//						//verifica se as credenciais do utilizador estão corretas
+//						if(!userCatalog.checkPassword(clientID, password)) {
+//							//se o user se tinha autenticado, saiu, e agora voltou a autenticar-se
+//							//como as passwords sao apagadas da memoria depois da autenticacao
+//							//e prciso voltar a carregar os dados para verificar se o cliente escreveu
+//							//a password mal ou se e um cliente que esta a retornar antes do servidor se desligar 
+//							loadUserDatabase();
+//							
+//							//se a password ainda for diferente da existente na base de dados, volta a pedi-la	
+//							while(!userCatalog.checkPassword(clientID, password)) {
+//								//indica que houve problemas na autenticacao
+//								outStream.writeBoolean(false);
+//								outStream.writeObject("Password incorreta. Insira a password de novo:");
+//								password = (String) inStream.readObject();						
+//							}
+//						}
+//						//indica que nao houve problemas na autenticacao
+//						outStream.writeBoolean(true);
+//						currentUser = userCatalog.getUser(clientID);						
+//					}
 					
 					//limpa a password do cliente em memoria para nao estar em plaintext e
 					//apenas estar disponivel na base de dados, encriptada
-					synchronized (this) {
-						currentUser.clearPassword();
-					}
-					password = null;						
+//					synchronized (this) {
+//						currentUser.clearPassword();
+//					}
+//					password = null;						
 					
 					outStream.writeObject("Conexao estabelecida");
 					System.out.println("A comunicar com o utilizador " + currentUser.getId());
@@ -259,7 +383,7 @@ public class TintolmarketServer {
 						e.printStackTrace();
 					}
 					
-				} catch (IOException | ClassNotFoundException e) {
+				} catch (IOException | ClassNotFoundException | NoSuchAlgorithmException | CertificateException | InvalidKeyException | SignatureException e) {
 					System.out.println("Conexao com cliente terminada");
 					outStream.close();
 					inStream.close();
@@ -495,7 +619,8 @@ public class TintolmarketServer {
 
 		//cria um scanner para ler o ficheiro
 		try {
-			uFileScanner = new Scanner(userDB);
+//			uFileScanner = new Scanner(userDB);
+			uFileScanner = new Scanner(decryptedUserDB);
 			bFileScanner = new Scanner(balanceDB);
 			iFileScanner = new Scanner(inboxDB);
 		} catch (FileNotFoundException e) {
@@ -863,5 +988,128 @@ public class TintolmarketServer {
 
 			output.close();
 		} catch (IOException | ClassNotFoundException e) {e.printStackTrace();}
+	}
+	
+	public void startEncryptUserDatabase() {
+		try {		
+		byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
+//		File f = new File("./src/server/files/new_user_database.txt");
+		FileInputStream fis = new FileInputStream(userDB);
+		//ByteArrayInputStream bais = new ByteArrayInputStream(fis);
+		PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20); // pass, salt, iterations
+		SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
+		SecretKey key = kf.generateSecret(keySpec);
+		
+		Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+		c.init(Cipher.ENCRYPT_MODE, key);
+		byte[] enc = c.doFinal(fis.readAllBytes());
+		byte[] params = c.getParameters().getEncoded();
+		
+		//File f1 = new File("./src/server/files/user_database.cif");
+		FileOutputStream fos1 = new FileOutputStream(encryptedUserDB);
+		fos1.write(enc);
+		
+		File f2 = new File("./src/server/files/cypher_params.txt");
+		FileOutputStream fos2 = new FileOutputStream(f2);
+		fos2.write(params);
+		
+		fis.close();
+		fos1.flush();
+		fos1.close();
+		fos2.flush();
+		fos2.close();
+		
+		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void encryptUserDatabase() {
+		try {		
+		byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
+//		File f = new File("./src/server/files/new_user_database.txt");
+		FileInputStream fis = new FileInputStream(decryptedUserDB);
+		//ByteArrayInputStream bais = new ByteArrayInputStream(fis);
+		PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20); // pass, salt, iterations
+		SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
+		SecretKey key = kf.generateSecret(keySpec);
+		
+		Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+		c.init(Cipher.ENCRYPT_MODE, key);
+		byte[] enc = c.doFinal(fis.readAllBytes());
+		byte[] params = c.getParameters().getEncoded();
+		
+		//File f1 = new File("./src/server/files/user_database.cif");
+		FileOutputStream fos1 = new FileOutputStream(encryptedUserDB);
+		fos1.write(enc);
+		
+		File f2 = new File("./src/server/files/cypher_params.txt");
+		FileOutputStream fos2 = new FileOutputStream(f2);
+		fos2.write(params);
+		
+		fis.close();
+		fos1.flush();
+		fos1.close();
+		fos2.flush();
+		fos2.close();
+		
+		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void decyptUserDatabase() {
+		try {		
+		byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
+//		File f = new File(user_database);
+//		FileInputStream fis = new FileInputStream(f);
+		//ByteArrayInputStream bais = new ByteArrayInputStream(fis);
+		PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20); // pass, salt, iterations
+		SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
+		SecretKey key = kf.generateSecret(keySpec);
+		
+	//	File f1 = encryptedUserDB;
+		FileInputStream fis1 = new FileInputStream(encryptedUserDB);
+		byte[] data = fis1.readAllBytes();
+		
+		File f2 = new File("./src/server/files/cypher_params.txt");
+		FileInputStream fis2 = new FileInputStream(f2);
+		byte[] params = fis2.readAllBytes();
+		
+		AlgorithmParameters p = AlgorithmParameters.getInstance("PBEWithHmacSHA256AndAES_128");
+		p.init(params);
+		Cipher d = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+		d.init(Cipher.DECRYPT_MODE, key, p);
+		byte[] dec = d.doFinal(data);
+		
+		//File f3 = new File("./src/server/files/new_user_database.txt");
+		FileOutputStream fos = new FileOutputStream(decryptedUserDB);
+		fos.write(dec);
+		fos.flush();
+		fos.close();
+		
+//		Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+//		c.init(Cipher.ENCRYPT_MODE, key);
+//		byte[] enc = c.doFinal(fis.readAllBytes());
+//		byte[] params = c.getParameters().getEncoded();
+		
+//		File f1 = new File("./src/server/files/user_database.cif");
+//		FileOutputStream fos1 = new FileOutputStream(f1);
+//		fos1.write(enc);
+		
+//		File f2 = new File("./src/server/files/cypher_params.txt");
+//		FileOutputStream fos2 = new FileOutputStream(f2);
+//		fos2.write(params);
+		
+		//fis.close();
+	//	fis1.flush();
+		fis1.close();
+		//fos2.flush();
+		fis2.close();
+		//return f3;
+		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
+			e.printStackTrace();
+			//return null;
+		}
 	}
 }

@@ -1,4 +1,4 @@
-daguel:pedro:boa tarde#tudo bem?#qual vinho aprecias mais?
-pinto:pedro:queria vender-te um vinho
-aulelas:pinto:posso comprar o teu vinho?
-pinto:aulelas:ok podes comprar
+daguel:::::pedro:::::boa tarde%%%%%tudo bem?%%%%%qual vinho aprecias mais?
+pinto:::::pedro:::::queria vender-te um vinho
+aulelas:::::pinto:::::posso comprar o teu vinho?
+pinto:::::aulelas:::::ok podes comprar

@@ -616,7 +616,7 @@ public class TintolmarketServer {
 						else {
 							u.addMessage(currentUser.getId(), message);
 							FileWriter fw = new FileWriter(inbox_database, true);
-							fw.write(System.getProperty("line.separator") + u.getId() + ":" + currentUser.getId() + ":" + message);
+							fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);
 							fw.close();						
 						}
 					}
@@ -693,7 +693,7 @@ public class TintolmarketServer {
 		}
 		
 		while(iFileScanner.hasNextLine()) {
-			info = iFileScanner.nextLine().split(":");
+			info = iFileScanner.nextLine().split(":::::");
 			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
 		}
 		
@@ -859,7 +859,7 @@ public class TintolmarketServer {
 
 	    while (sc.hasNextLine()) {
 	    	line = sc.nextLine();
-	    	words = line.split(":");
+	    	words = line.split(":::::");
 	    	
 	    	if(words[0].equals(recipient) && clear) {
 	    		continue;
@@ -878,13 +878,32 @@ public class TintolmarketServer {
 	    String databaseContent = buffer.toString();
 	    
 	    if(!clear && oldLine.length() > 0) {
+	    	//System.out.println(message);
 	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
-	    	
-	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
-	    	 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
-	    	 * mais mensagens a essa linha. Se nao houver nenhum '?' numa mensagem 
-	    	 * anterior funciona tudo normalmente*/
-	    	databaseContent = databaseContent.replaceAll(message + "\\?", message);
+	    	//System.out.println(databaseContent);
+//	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
+//	    	 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
+//	    	 * mais mensagens a essa linha. Se nao houver nenhum '?' numa mensagem 
+//	    	 * anterior funciona tudo normalmente*/	
+//	    	if(databaseContent.contains(message + "+^s")) {
+//	    		System.out.println("deu erro aqui lmao");
+//	    		
+//	    		StringBuilder sb = new StringBuilder();
+//	    		String[] lines = databaseContent.split(System.getProperty("line.separator"));
+//	    		for(String l : lines) {
+//	    			if(!l.contains(message + "+^s")) {
+//	    				sb.append(l + System.getProperty("line.separator"));
+//	    			}
+//	    			else {
+//	    				String nl = l.substring(0, l.indexOf(message.charAt(message.length() - 1)));
+//	    				sb.append(nl + System.getProperty("line.separator"));
+//	    			}
+//	    		}
+//	    		databaseContent = sb.toString();
+//	    		oldLine = "";	
+//	    	}
+	    //	databaseContent = databaseContent.replaceAll(message + "+^s", message);
+	    //	databaseContent = databaseContent.replaceAll(message + "%", message);
 	    
 	    	/*tratamento muito especifico do erro explicado em cima, a unica solucao
 	    	 *foi apagar a linha e escrever de novo no fim atraves dos dados em memoria.

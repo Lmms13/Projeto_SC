@@ -64,7 +64,7 @@ public class User {
 	}
 	
 	public void loadMessages(String sender, String allMessages) {	
-		String[] splitMessages = allMessages.split("#");
+		String[] splitMessages = allMessages.split("%%%%%");
 		if(this.inbox.containsKey(sender)) {
 			for(String m: splitMessages) {
 				this.inbox.get(sender).add(m);
@@ -109,12 +109,12 @@ public class User {
 	
 	public String getMessagesFromSender(String sender) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(this.userId + ":" + sender + ":");
+		sb.append(this.userId + ":::::" + sender + ":::::");
 		List<String> messages = inbox.get(sender);
 		for(String message : messages) {
-			sb.append(message + "#");
+			sb.append(message + "%%%%%");
 		}
-		sb.deleteCharAt(sb.length() - 1);
+		sb.delete(sb.length() - 5, sb.length());
 		return sb.toString();
 	}
 }

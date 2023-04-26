@@ -168,6 +168,8 @@ public class TintolmarketServer {
 			return;
         }
 		
+		if(true);
+		
 		//Carrega a base de dados para memória
 		userCatalog = new UserCatalog();
 		//decryptedUserDB = NEW fILE
@@ -304,6 +306,7 @@ public class TintolmarketServer {
 							//byte[] buf = fis.read();
 							CertificateFactory cf = CertificateFactory.getInstance("X509");
 							Certificate cert = cf.generateCertificate(fis);
+							fis.close();
 //							KeyStore keystore = KeyStore.getInstance("JCEKS");
 //							FileInputStream keystore_fis = new FileInputStream(keystorePath);
 //							keystore.load(keystore_fis, keystorePassword.toCharArray());
@@ -386,6 +389,24 @@ public class TintolmarketServer {
 							}
 							else if(request.startsWith("v") || request.startsWith("view")) {
 								sendImage(request, outStream);
+							}
+							else if(request.startsWith("s") || request.startsWith("sell") || 
+									request.startsWith("s") || request.startsWith("sell")) {
+								byte[] requestSignature = (byte[]) inStream.readObject();
+								File f = new File("./src/server/files/" + clientID + ".cer");
+								FileInputStream fis = new FileInputStream(f);
+								CertificateFactory cf = CertificateFactory.getInstance("X509");
+								Certificate cert = cf.generateCertificate(fis);
+								fis.close();
+								PublicKey pk = cert.getPublicKey();
+								Signature signature = Signature.getInstance("MD5withRSA");
+								signature.initVerify(pk);
+								byte[] data = request.getBytes();
+								signature.update(data);
+								if(!signature.verify(requestSignature)) {
+									outStream.writeObject("A assinatura nao foi verificada!");
+									continue;									
+								}
 							}
 							reply = processRequest(request);
 							outStream.writeObject(reply);

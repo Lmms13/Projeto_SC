@@ -168,6 +168,18 @@ public class Tintolmarket {
 				else if(request.startsWith("v") || request.startsWith("view")) {
 					receiveImage(request, inStream);
 				}
+				else if(request.startsWith("s") || request.startsWith("sell") ||
+						request.startsWith("s") || request.startsWith("sell")) {			
+					KeyStore keystore = KeyStore.getInstance("JCEKS");
+					FileInputStream keystore_fis = new FileInputStream(keystorePath);
+					keystore.load(keystore_fis, keystorePassword.toCharArray());
+					PrivateKey key = (PrivateKey) keystore.getKey("pedro", ("pedro" + ".key").toCharArray());
+					Signature signature = Signature.getInstance("MD5withRSA");
+					signature.initSign(key);
+					byte[] data = request.getBytes();
+					signature.update(data);
+					outStream.writeObject(signature.sign());
+				}
 				reply = (String) inStream.readObject();
 				System.out.println(reply);
 				reply = (String) inStream.readObject();

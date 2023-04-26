@@ -172,8 +172,10 @@ public class Tintolmarket {
 						request.startsWith("s") || request.startsWith("sell")) {			
 					KeyStore keystore = KeyStore.getInstance("JCEKS");
 					FileInputStream keystore_fis = new FileInputStream(keystorePath);
+					//FileInputStream keystore_fis = new FileInputStream("./src/client/files/pedro.keystore");
 					keystore.load(keystore_fis, keystorePassword.toCharArray());
-					PrivateKey key = (PrivateKey) keystore.getKey("pedro", ("pedro" + ".key").toCharArray());
+					PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+					//PrivateKey key = (PrivateKey) keystore.getKey("pedro", ("pedro" + ".key").toCharArray());
 					Signature signature = Signature.getInstance("MD5withRSA");
 					signature.initSign(key);
 					byte[] data = request.getBytes();

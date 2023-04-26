@@ -23,6 +23,8 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.AlgorithmParameters;
@@ -42,6 +44,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -609,14 +613,30 @@ public class TintolmarketServer {
 					synchronized (this) {					
 						User u = userCatalog.getUser(words[1]);
 						String message = String.join(" ", Arrays.copyOfRange(words, 2, words.length));
+						
+//						File f = new File("./src/server/files/" + u.getId() + ".cer");
+//						FileInputStream fis = new FileInputStream(f);
+//						CertificateFactory cf = CertificateFactory.getInstance("X509");
+//						Certificate cert = cf.generateCertificate(fis);
+//						fis.close();
+//						PublicKey pk = cert.getPublicKey();
+//						Cipher c = Cipher.getInstance("AES");
+//						Charset charset = StandardCharsets.ISO_8859_1;
+//					    c.init(Cipher.ENCRYPT_MODE, pk);
+//					    String encrypted = new String(c.doFinal(message.getBytes(charset)), charset);						
+						
 						if(u.hasSender(currentUser.getId())) {
 							u.addMessage(currentUser.getId(), message);
 							updateInboxEntry(u.getId(), currentUser.getId(), message);
+//							u.addMessage(currentUser.getId(), encrypted);
+//							updateInboxEntry(u.getId(), currentUser.getId(), encrypted);
 						}
 						else {
 							u.addMessage(currentUser.getId(), message);
+//							u.addMessage(currentUser.getId(), encrypted);
 							FileWriter fw = new FileWriter(inbox_database, true);
-							fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);
+							fw.write(System.getProperty("line.separator") + System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);
+//							fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + encrypted);
 							fw.close();						
 						}
 					}
@@ -630,6 +650,26 @@ public class TintolmarketServer {
 					}
 					else {
 						String fullInbox = currentUser.displayMessages();
+//						StringBuilder sb = new StringBuilder();
+//						String sender = "";
+//						for(String message : fullInbox.split(System.getProperty("line.separator"))) {
+//							if(message.startsWith("---") || message.length() == 0) {
+//								sender = message.split("---")[0];
+//								System.out.println(sender);
+//							}
+//							else{
+//								File f = new File("./src/server/files/" + sender + ".cer");
+//								FileInputStream fis = new FileInputStream(f);
+//								CertificateFactory cf = CertificateFactory.getInstance("X509");
+//								Certificate cert = cf.generateCertificate(fis);
+//								fis.close();
+//								PublicKey pk = cert.getPublicKey();
+//								Cipher c = Cipher.getInstance("AES");
+//								Charset charset = StandardCharsets.ISO_8859_1;
+//							    c.init(Cipher.DECRYPT_MODE, pk);
+//								sb.append(message + System.getProperty("line.separator"));
+//							}
+//						}
 						currentUser.clearMessages();
 						updateInboxEntry(currentUser.getId(), "none", "none");
 						return fullInbox;
@@ -691,9 +731,23 @@ public class TintolmarketServer {
 			info = bFileScanner.nextLine().split(":");
 			userCatalog.getUser(info[0]).setBalance(Integer.parseInt(info[1]));
 		}
+		iFileScanner.useDelimiter("STRING MUITO____IMPROVAVEL_(())__NUNCA VAI ACONTECER");
+		String regex = "\\S+:::::(?s).*?(?=\\S+:::::|\\z)";		
+		Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE | Pattern.DOTALL);
+		Matcher matcher = pattern.matcher(iFileScanner.next());
+		//System.out.println(iFileScanner.next());
 		
-		while(iFileScanner.hasNextLine()) {
-			info = iFileScanner.nextLine().split(":::::");
+		while (matcher.find()) {
+			info = matcher.group(0).split(":::::");
+			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
+          //  System.out.println("Full match: " + matcher.group(0));
+            
+        }
+		
+		while(iFileScanner.hasNext(pattern)) {
+			System.out.println("entrei");
+	//	while(iFileScanner.hasNextLine()) {
+			info = iFileScanner.next(pattern).split(":::::");
 			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
 		}
 		
@@ -849,6 +903,7 @@ public class TintolmarketServer {
 		String[] words;
 		String oldLine = "";
 		boolean clear = !userCatalog.getUser(recipient).hasMessages();
+		boolean continuation = false;
 		try {
 			sc = new Scanner(inboxDB);
 		} catch (FileNotFoundException e) {
@@ -862,8 +917,18 @@ public class TintolmarketServer {
 	    	words = line.split(":::::");
 	    	
 	    	if(words[0].equals(recipient) && clear) {
+	    		continuation = true;
 	    		continue;
 	    	}
+	    	if(continuation && clear) {
+	    		if(words.length == 1) {
+	    			continue;			
+	    		}
+	    		else {
+	    			continuation = false;    			
+	    		}
+	    	}
+
 	    	if(!sc.hasNextLine()) {
 	    		buffer.append(line);
 	    	}
@@ -878,8 +943,11 @@ public class TintolmarketServer {
 	    String databaseContent = buffer.toString();
 	    
 	    if(!clear && oldLine.length() > 0) {
+	    	StringBuilder builder = new StringBuilder(databaseContent);
+	    	builder.replace(builder.indexOf(oldLine), builder.indexOf(oldLine) + oldLine.length(), userCatalog.getUser(recipient).getMessagesFromSender(sender));
+	    	databaseContent = builder.toString();
 	    	//System.out.println(message);
-	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
+	    	//databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
 	    	//System.out.println(databaseContent);
 //	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
 //	    	 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
@@ -902,8 +970,15 @@ public class TintolmarketServer {
 //	    		databaseContent = sb.toString();
 //	    		oldLine = "";	
 //	    	}
-	    //	databaseContent = databaseContent.replaceAll(message + "+^s", message);
-	    //	databaseContent = databaseContent.replaceAll(message + "%", message);
+	    	
+	    	
+	    	
+	    	//databaseContent = databaseContent.replaceAll(message + "\\?", message);
+	    
+	    	
+	    	
+	    	
+	    	//	databaseContent = databaseContent.replaceAll(message + "%", message);
 	    
 	    	/*tratamento muito especifico do erro explicado em cima, a unica solucao
 	    	 *foi apagar a linha e escrever de novo no fim atraves dos dados em memoria.

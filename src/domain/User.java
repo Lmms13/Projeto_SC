@@ -86,8 +86,8 @@ public class User {
 			for(String s: entry.getValue()) {
 				sb.append(s + System.getProperty("line.separator"));
 			}
-			sb.append(System.getProperty("line.separator"));
 		}
+		sb.append("----------" + System.getProperty("line.separator"));
 		return sb.toString();
 	}
 	
@@ -115,6 +115,7 @@ public class User {
 			sb.append(message + "%%%%%");
 		}
 		sb.delete(sb.length() - 5, sb.length());
+		System.out.println(sb.toString());
 		return sb.toString();
 	}
 }

@@ -193,6 +193,7 @@ public class Tintolmarket {
 					outStream.writeObject(signature.sign());
 				}
 				reply = (String) inStream.readObject();
+				System.out.println(reply);
 				if(request.startsWith("r") || request.startsWith("read")) {
 					if(!reply.equals("Nao tem mensagens para ler")) {
 						KeyStore keystore = KeyStore.getInstance("JCEKS");
@@ -200,8 +201,8 @@ public class Tintolmarket {
 						keystore.load(keystore_fis, keystorePassword.toCharArray());
 						keystore_fis.close();
 					
-					Charset charset = StandardCharsets.ISO_8859_1;
-					StringBuilder sb = new StringBuilder();
+						Charset charset = StandardCharsets.ISO_8859_1;
+						StringBuilder sb = new StringBuilder();
 					//String[] lines = reply.split(System.getProperty("line.separator"));
 				//	String messages[] = reply.split(request)
 //					for(String messages : reply.split(System.getProperty("line.separator"))) {
@@ -213,37 +214,43 @@ public class Tintolmarket {
 //						}
 //						
 //					}
-					for(String chat : reply.split("----------" + System.getProperty("line.separator"))) {
-						String[] lines = chat.split(System.getProperty("line.separator"));
+					PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+					Cipher c = Cipher.getInstance("RSA");
+					c.init(Cipher.DECRYPT_MODE, key);
+					sb.append(new String(c.doFinal(), charset) + System.getProperty("line.separator"));
+
+					
+				//	for(String chat : reply.split("----------" + System.getProperty("line.separator"))) {
+			//			String[] lines = chat.split(System.getProperty("line.separator"));
 //						if(lines.startsWith("---") || lines.equals(System.getProperty("line.separator"))) {
 //							sb.append(messages);
 //						}
 						
-						sb.append(lines[0] + System.getProperty("line.separator"));
+			//			sb.append(lines[0] + System.getProperty("line.separator"));
 						
 //						if(message[0].startsWith("---") || message[0].length() == 0) {
 //						}
 					//	else {
-							StringBuilder builder = new StringBuilder();
-							for(int i = 1; i < lines.length; i++) {
-								if(i != lines.length -1) {
-									builder.append(lines[i] + System.getProperty("line.separator"));		
-								}
-								else {
-									builder.append(lines[i]);											
-								}
-							}
-							
+//							StringBuilder builder = new StringBuilder();
+//							for(int i = 1; i < lines.length; i++) {
+//								if(i != lines.length -1) {
+//									builder.append(lines[i] + System.getProperty("line.separator"));		
+//								}
+//								else {
+//									builder.append(lines[i]);											
+//								}
+//							}
+//							
 //							for(String mess : message) {
 //								System.out.println(mess);
 //								
 //							}
-							String m = builder.toString();
-							//System.out.println(m);
-							PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
-							//PublicKey key = (PublicKey) truststore.getCertificate(sender).getPublicKey();
-							Cipher c = Cipher.getInstance("RSA");
-							c.init(Cipher.DECRYPT_MODE, key);
+//							String m = builder.toString();
+//							//System.out.println(m);
+//							PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+//							//PublicKey key = (PublicKey) truststore.getCertificate(sender).getPublicKey();
+//							Cipher c = Cipher.getInstance("RSA");
+//							c.init(Cipher.DECRYPT_MODE, key);
 //							byte[] buf = new byte[256];
 //							ByteArrayInputStream bais = new ByteArrayInputStream(m.getBytes(charset));
 //							while(bais.read(buf) != -1) {
@@ -252,21 +259,23 @@ public class Tintolmarket {
 //							bais.close();
 							
 						//	c.update(m.getBytes(charset));
-							System.out.println("BEFORE: " + m);
-							byte[] data = new byte[256];
-							ByteArrayInputStream bais = new ByteArrayInputStream(m.getBytes(charset));
-							while(bais.read(data) != -1) {
-								c.update(data);
-							}
-							bais.close();
+//							System.out.println("BEFORE: " + m);
+//							byte[] data = new byte[256];
+//							ByteArrayInputStream bais = new ByteArrayInputStream(m.getBytes(charset));
+//							BufferedInputStream bis = new BufferedInputStream(bais);
+//							while(bis.read(data) != -1) {
+//								c.update(data);
+//							}
+//							bais.close();
+//							bis.close();
 						
 							
 									//m.getBytes(charset);
 							//c.update(data);
 						//	new String(c.doFinal(splitRequest[2].getBytes(charset)), charset);
-							sb.append(new String(c.doFinal(), charset) + System.getProperty("line.separator"));
+					//		sb.append(new String(c.doFinal(), charset) + System.getProperty("line.separator"));
 						//}
-					}
+					//}
 					reply = sb.toString();
 					}
 					

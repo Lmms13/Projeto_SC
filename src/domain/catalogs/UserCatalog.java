@@ -63,4 +63,18 @@ public class UserCatalog {
 	public void clear() {
 		userCatalog.clear();
 	}
+	
+	public String inboxDatabaseToString() {
+		StringBuilder sb = new StringBuilder();
+		for(User u : userCatalog) {
+			if(u.hasMessages()) {
+				sb.append(u.getAllMessages());
+			}
+		}
+		if(!sb.isEmpty()) {
+			sb.setLength(sb.length() - 2);			
+		}
+		System.out.println(sb.toString());
+		return sb.toString();
+	}
 }

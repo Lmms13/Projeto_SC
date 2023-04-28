@@ -131,7 +131,16 @@ public class User {
 			sb.append(message + "%%%%%");
 		}
 		sb.delete(sb.length() - 5, sb.length());
-		System.out.println(sb.toString());
+		return sb.toString();
+	}
+
+	public String getAllMessages() {
+		StringBuilder sb = new StringBuilder();
+		for(HashMap.Entry<String, List<String>> entry: this.inbox.entrySet()) {
+			System.out.println(entry.getKey());
+			sb.append(getMessagesFromSender(entry.getKey()) + System.getProperty("line.separator"));
+			System.out.println(sb.toString());
+		}
 		return sb.toString();
 	}
 }

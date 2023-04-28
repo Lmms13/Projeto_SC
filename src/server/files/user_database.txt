@@ -1,5 +1,2 @@
-daguel:./src/server/files/daguel.cer
-pedro:./src/server/files/pedro.cer
 pinto:./src/server/files/pinto.cer
-aulelas:./src/server/files/aulelas.cer
 rodolfo:./src/server/files/rodolfo.cer

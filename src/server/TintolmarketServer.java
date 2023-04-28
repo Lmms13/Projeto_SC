@@ -67,7 +67,7 @@ import server.blockchain.BlockchainHandler;
 
 public class TintolmarketServer {
 
-	private static final String user_database = "./src/server/files/user_database.txt";
+	//private static final String user_database = "./src/server/files/user_database.txt";
 	private static final String wine_database = "./src/server/files/wine_database.txt";
 	private static final String winesellers_database = "./src/server/files/winesellers_database.txt";
 	private static final String inbox_database = "./src/server/files/inbox_database.txt";
@@ -82,7 +82,7 @@ public class TintolmarketServer {
 	private UserCatalog userCatalog;
 	private WineCatalog wineCatalog;
 
-	private File userDB;
+	//private File userDB;
 	private File wineDB;
 	private File sellersDB;
 	private File inboxDB;
@@ -91,10 +91,11 @@ public class TintolmarketServer {
 	private File decryptedUserDB;
 
 	private String cypherPassword;
+	@SuppressWarnings("unused")
 	private String keystorePath;
 	private String keystorePassword;
 
-	private File userMAC;
+//	private File userMAC;
 	private File wineMAC;
 	private File sellersMAC;
 	private File inboxMAC;
@@ -150,11 +151,11 @@ public class TintolmarketServer {
 		cypherParams = new File(cypher_params);
 
 		//verifica se o ficheiro de base de dados de clientes existe.
-		userDB = new File(user_database);
-		if (!userDB.exists()){
-			System.out.println("Base de dados de clientes nao encontrada!");
-			return;
-		}
+//		userDB = new File(user_database);
+//		if (!userDB.exists()){
+//			System.out.println("Base de dados de clientes nao encontrada!");
+//			return;
+//		}
 
 		encryptedUserDB = new File("./src/server/files/user_database.cif");
 		if (!encryptedUserDB.exists()){
@@ -194,8 +195,8 @@ public class TintolmarketServer {
 		//Carrega a base de dados para memoria
 		userCatalog = new UserCatalog();
 		decryptedUserDB = new File("./src/server/files/new_user_database.txt");
-		startEncryptUserDatabase();
-		decyptUserDatabase();
+		//startEncryptUserDatabase();
+		decryptUserDatabase();
 		loadUserDatabase();
 		encryptUserDatabase();
 		decryptedUserDB.delete();
@@ -227,7 +228,7 @@ public class TintolmarketServer {
 
 		//Carrega a base de dados para memoria
 		wineCatalog = new WineCatalog();
-		loadWineDatabase();
+		loadWineDatabase();		
 
 		try {
 			if(blockchain.checkIntegrity()) {
@@ -304,7 +305,7 @@ public class TintolmarketServer {
 							if(!checkIntegrity(encryptedUserDB, encryptedUserMAC)) {
 								System.out.println("A integridade da base de dados de utilizadores foi violada.");
 							}
-							decyptUserDatabase();
+							decryptUserDatabase();
 							FileWriter fw = new FileWriter(decryptedUserDB, true);
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.flush();
@@ -313,10 +314,11 @@ public class TintolmarketServer {
 							encryptUserDatabase();				
 							decryptedUserDB.delete();
 
-							FileWriter fw1 = new FileWriter(balance_database, true);
+							FileWriter fw1 = new FileWriter(balanceDB, true);
 							fw1.write(System.getProperty("line.separator") + currentUser.getId() + ":" + currentUser.getBalance());
 							fw1.flush();
 							fw1.close();
+							generateNewMAC(balanceDB, balanceMAC);
 						}
 						else {
 							System.out.println("O nonce enviado nao esta correto");
@@ -898,130 +900,6 @@ public class TintolmarketServer {
 		generateNewMAC(inboxDB, inboxMAC);
 	}
 
-
-	//	private synchronized void updateInboxEntry__(String recipient, String sender, String message) {
-	//		if(!checkIntegrity(inboxDB, inboxMAC)) {
-	//			System.out.println("A integridade da base de dados de mensagens foi violada.");
-	//		}
-	//
-	//		Scanner scanner = null;
-	//		String line;
-	//		String[] words;
-	//		String oldLine = "";
-	//		boolean clear = !userCatalog.getUser(recipient).hasMessages();
-	//		boolean continuation = false;
-	//		try {
-	//			scanner = new Scanner(inboxDB);
-	//		} catch (FileNotFoundException e) {
-	//			e.printStackTrace();
-	//		}
-	//
-	//		StringBuffer buffer = new StringBuffer();
-	//
-	//		System.out.println(scanner.hasNextLine());
-	//		while (scanner.hasNextLine()) {
-	//			line = scanner.nextLine();
-	//			words = line.split(":::::");
-	//
-	//			if(words[0].equals(recipient) && clear) {
-	//				continuation = true;
-	//				continue;
-	//			}
-	//			if(continuation && clear) {
-	//				if(words.length == 1) {
-	//					continue;			
-	//				}
-	//				else {
-	//					continuation = false;    			
-	//				}
-	//			}
-	//
-	//			if(!scanner.hasNextLine()) {
-	//				buffer.append(line);
-	//			}
-	//			else{
-	//				buffer.append(line + System.getProperty("line.separator"));
-	//			}
-	//			if(words[0].equals(recipient) && words[1].equals(sender)) {
-	//				System.out.println("oldline");
-	//				oldLine = line;
-	//			}
-	//		}
-	//		scanner.close();
-	//		String databaseContent = buffer.toString();
-	//
-	//		if(!clear && oldLine.length() > 0) {
-	//			StringBuilder builder = new StringBuilder(databaseContent);
-	//			builder.replace(builder.indexOf(oldLine), builder.indexOf(oldLine) + oldLine.length(), userCatalog.getUser(recipient).getMessagesFromSender(sender));
-	//			databaseContent = builder.toString();
-	//			databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
-	//
-	//			/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
-	//			 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
-	//			 * mais mensagens a essa linha. Se nao houver nenhum '?' numa mensagem 
-	//			 * anterior funciona tudo normalmente*/	
-	//			if(databaseContent.contains(message + "+^s")) {
-	//				System.out.println("deu erro aqui lmao");
-	//
-	//				StringBuilder sb = new StringBuilder();
-	//				String[] lines = databaseContent.split(System.getProperty("line.separator"));
-	//				for(String l : lines) {
-	//					if(!l.contains(message + "+^s")) {
-	//						sb.append(l + System.getProperty("line.separator"));
-	//					}
-	//					else {
-	//						String nl = l.substring(0, l.indexOf(message.charAt(message.length() - 1)));
-	//						sb.append(nl + System.getProperty("line.separator"));
-	//					}
-	//				}
-	//				databaseContent = sb.toString();
-	//				oldLine = "";	
-	//			}
-	//
-	//			/*tratamento muito especifico do erro explicado em cima, a unica solucao
-	//			 *foi apagar a linha e escrever de novo no fim atraves dos dados em memoria.
-	//			 * Este erro nao afetava a memoria, apenas a base de dados, e a 
-	//			 * ordem nao interessa na base de dados*/
-	//			if(!databaseContent.contains(message)) {
-	//				System.out.println("ENTREU AQUI");
-	//				StringBuilder sb = new StringBuilder();
-	//				String[] lines = databaseContent.split(System.getProperty("line.separator"));
-	//				for(String l : lines) {
-	//					if(!l.contains(oldLine)) {
-	//						sb.append(l + System.getProperty("line.separator"));
-	//					}
-	//				}
-	//				databaseContent = sb.toString();
-	//				oldLine = "";
-	//			}
-	//		}
-	//
-	//		if(databaseContent.endsWith(System.getProperty("line.separator"))) {
-	//			databaseContent = databaseContent.replaceAll("(\r\n?|\n)$", "");
-	//		}
-	//
-	//		if(databaseContent.startsWith("(\r\n?|\n)")) {
-	//			System.out.println("entrei");
-	//			databaseContent = databaseContent.replaceAll("^(\r\n?|\n)", "");
-	//		}
-	//
-	//		FileWriter fw = null;
-	//		try {
-	//			fw = new FileWriter(inboxDB, charset);
-	//			fw.append(databaseContent);
-	//			//salvaguarda para a remocao de uma linha da base de dados em runtime
-	//			//tambem e usado para tratar o erro em cima
-	//			if(oldLine.length() == 0 && !clear) {
-	//				fw.append(System.getProperty("line.separator") + userCatalog.getUser(recipient).getMessagesFromSender(sender));
-	//			}
-	//			fw.flush();
-	//			fw.close();
-	//		} catch (IOException e) {
-	//			e.printStackTrace();
-	//		}
-	//		generateNewMAC(inboxDB, inboxMAC);
-	//	}
-
 	private synchronized void updateBalanceEntry(String seller, String buyer) {
 		if(!checkIntegrity(balanceDB, balanceMAC)) {
 			System.out.println("A integridade da base de dados de saldo foi violada.");
@@ -1142,36 +1020,36 @@ public class TintolmarketServer {
 		} catch (IOException | ClassNotFoundException e) {e.printStackTrace();}
 	}
 
-	public void startEncryptUserDatabase() {
-		try {		
-			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
-			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20);
-			SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
-			SecretKey key = kf.generateSecret(keySpec);
-
-			Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
-			c.init(Cipher.ENCRYPT_MODE, key);
-
-			FileInputStream origfis = new FileInputStream(userDB);
-			byte[] enc = c.doFinal(origfis.readAllBytes());
-			byte[] params = c.getParameters().getEncoded();
-
-			FileOutputStream encfos = new FileOutputStream(encryptedUserDB);
-			encfos.write(enc);
-
-			FileOutputStream paramfos = new FileOutputStream(cypherParams);
-			paramfos.write(params);
-
-			origfis.close();
-			encfos.flush();
-			encfos.close();
-			paramfos.flush();
-			paramfos.close();
-		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
-			e.printStackTrace();
-		}
-		generateNewMAC(encryptedUserDB, encryptedUserMAC);
-	}
+//	public void startEncryptUserDatabase() {
+//		try {		
+//			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
+//			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20);
+//			SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
+//			SecretKey key = kf.generateSecret(keySpec);
+//
+//			Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+//			c.init(Cipher.ENCRYPT_MODE, key);
+//
+//			FileInputStream origfis = new FileInputStream(userDB);
+//			byte[] enc = c.doFinal(origfis.readAllBytes());
+//			byte[] params = c.getParameters().getEncoded();
+//
+//			FileOutputStream encfos = new FileOutputStream(encryptedUserDB);
+//			encfos.write(enc);
+//
+//			FileOutputStream paramfos = new FileOutputStream(cypherParams);
+//			paramfos.write(params);
+//
+//			origfis.close();
+//			encfos.flush();
+//			encfos.close();
+//			paramfos.flush();
+//			paramfos.close();
+//		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
+//			e.printStackTrace();
+//		}
+//		generateNewMAC(encryptedUserDB, encryptedUserMAC);
+//	}
 
 	public void encryptUserDatabase() {
 		try {		
@@ -1204,7 +1082,7 @@ public class TintolmarketServer {
 		generateNewMAC(encryptedUserDB, encryptedUserMAC);
 	}
 
-	public void decyptUserDatabase() {
+	public void decryptUserDatabase() {
 		try {		
 			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
 

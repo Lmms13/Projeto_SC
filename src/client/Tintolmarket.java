@@ -193,16 +193,34 @@ public class Tintolmarket {
 					outStream.writeObject(signature.sign());
 				}
 				reply = (String) inStream.readObject();
-				System.out.println(reply);
 				if(request.startsWith("r") || request.startsWith("read")) {
 					if(!reply.equals("Nao tem mensagens para ler")) {
 						KeyStore keystore = KeyStore.getInstance("JCEKS");
 						FileInputStream keystore_fis = new FileInputStream(keystorePath);
 						keystore.load(keystore_fis, keystorePassword.toCharArray());
 						keystore_fis.close();
-					
+						PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
 						Charset charset = StandardCharsets.ISO_8859_1;
+						Cipher c = Cipher.getInstance("RSA");
 						StringBuilder sb = new StringBuilder();
+						StringBuilder enc = new StringBuilder();
+						String[] lines = reply.split(System.getProperty("line.separator"));
+						for(String line : lines) {
+							if(line.startsWith("---") && enc.isEmpty()) {
+								sb.append(line + System.getProperty("line.separator"));
+							}
+							else if(line.startsWith("---") && !enc.isEmpty()) {
+								String encripted = enc.toString();
+								enc.setLength(0);	
+							//	Cipher c = Cipher.getInstance("RSA");
+								c.init(Cipher.DECRYPT_MODE, key);
+								sb.append(new String(c.doFinal(encripted.getBytes(charset)), charset) + System.getProperty("line.separator"));
+								sb.append(line + System.getProperty("line.separator"));
+							}
+							else {
+								enc.append(line);
+							}
+						}
 					//String[] lines = reply.split(System.getProperty("line.separator"));
 				//	String messages[] = reply.split(request)
 //					for(String messages : reply.split(System.getProperty("line.separator"))) {
@@ -214,10 +232,7 @@ public class Tintolmarket {
 //						}
 //						
 //					}
-					PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
-					Cipher c = Cipher.getInstance("RSA");
-					c.init(Cipher.DECRYPT_MODE, key);
-					sb.append(new String(c.doFinal(), charset) + System.getProperty("line.separator"));
+					
 
 					
 				//	for(String chat : reply.split("----------" + System.getProperty("line.separator"))) {
@@ -300,11 +315,26 @@ public class Tintolmarket {
 						Cipher c = Cipher.getInstance("RSA");
 						Charset charset = StandardCharsets.ISO_8859_1;
 					    c.init(Cipher.ENCRYPT_MODE, key);
-					    String encrypted = new String(c.doFinal(splitRequest[2].getBytes(charset)), charset);	
+					    String message = String.join(" ", Arrays.copyOfRange(splitRequest, 2, splitRequest.length));
+					    String encrypted = new String(c.doFinal(message.getBytes(charset)), charset);	
+					    
+					    
 					    request = splitRequest[0] + " " + splitRequest[1] + " " + encrypted;
+					
+//					    KeyStore keystore = KeyStore.getInstance("JCEKS");
+//						FileInputStream keystore_fis = new FileInputStream(keystorePath);
+//						keystore.load(keystore_fis, keystorePassword.toCharArray());
+//						keystore_fis.close();
+//						PrivateKey key2 = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+//						Cipher c2 = Cipher.getInstance("RSA");
+//						c2.init(Cipher.DECRYPT_MODE, key2);
+//						
+//						System.out.println(new String(c2.doFinal(encrypted.getBytes(charset)), charset));
+					
 					}
 					outStream.writeObject(request);
 				} catch (NoSuchElementException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+					e.printStackTrace();
 					System.out.println("A encerrar servico...");
 				}
 			}

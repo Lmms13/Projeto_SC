@@ -85,12 +85,12 @@ public class User {
 	public String displayMessages() {
 		StringBuilder sb = new StringBuilder();
 		for(HashMap.Entry<String, List<String>> entry: this.inbox.entrySet()) {
-			sb.append("---" + entry.getKey() + "---" + System.getProperty("line.separator"));
 			for(String s: entry.getValue()) {
+				sb.append("---" + entry.getKey() + "---" + System.getProperty("line.separator"));
 				sb.append(s + System.getProperty("line.separator"));
 			}
+			sb.append("----------------------" + System.getProperty("line.separator"));
 		}
-		sb.append("----------" + System.getProperty("line.separator"));
 		return sb.toString();
 	}
 	

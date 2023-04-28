@@ -193,6 +193,7 @@ public class TintolmarketServer {
 		//Carrega a base de dados para memória
 		userCatalog = new UserCatalog();
 		decryptedUserDB = new File("./src/server/files/new_user_database.txt");
+	    //generateNewMAC(inboxDB, inboxMAC);
 		startEncryptUserDatabase();
 		generateNewMAC(encryptedUserDB, encryptedUserMAC);
 		decyptUserDatabase();
@@ -533,7 +534,7 @@ public class TintolmarketServer {
 							}
 						}
 						synchronized (this) {
-							blockchain.newTransaction(w.getId() + ":" + quantity + ":" + price + ":" + currentUser.getId());							
+							blockchain.newTransaction("S:" + w.getId() + ":" + quantity + ":" + price + ":" + currentUser.getId());							
 						}
 						return "Vinho colocado a venda com sucesso!";
 					}
@@ -602,7 +603,7 @@ public class TintolmarketServer {
 								updateWineEntry(w.getId());
 								updateBalanceEntry(u.getId(), currentUser.getId());
 								
-								blockchain.newTransaction(w.getId() + ":" + quantity + ":" + s.getPrice() + ":" + currentUser.getId());							
+								blockchain.newTransaction("B:" + w.getId() + ":" + quantity + ":" + s.getPrice() + ":" + currentUser.getId());							
 								
 								return "Compra efetuada com sucesso!";
 							}
@@ -674,30 +675,30 @@ public class TintolmarketServer {
 							}
 							u.addMessage(currentUser.getId(), message);
 //							u.addMessage(currentUser.getId(), encrypted);
+
 							FileWriter fw = new FileWriter(inbox_database, true);
-							fw.write(System.getProperty("line.separator") + System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);
-//							fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + encrypted);
+							fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);
 							fw.close();		
 							generateNewMAC(inboxDB, inboxMAC);
 						}
-						File f = new File("./src/server/files/" + currentUser.getId() + ".cer");
-						FileInputStream fis = new FileInputStream(f);
-						CertificateFactory cf = CertificateFactory.getInstance("X509");
-						Certificate cert = cf.generateCertificate(fis);
-						fis.close();
-						PublicKey pk = cert.getPublicKey();
-						Cipher c = Cipher.getInstance("RSA");
-						c.init(Cipher.DECRYPT_MODE, pk);
-						byte[] bytes = new byte[1000];
-						final ByteBuffer buffer = ByteBuffer.allocate(message.getBytes().length*8).put(message.getBytes(StandardCharsets.ISO_8859_1));
-//						buffer.put();
-						buffer.rewind();
-						buffer.get(bytes);
-					//	c.update(buffer.get);
-						//c.update(message.getBytes(StandardCharsets.ISO_8859_1));
-						System.out.println(message);
-						return "Mensagem enviada com sucesso!" + new String(c.doFinal(bytes), StandardCharsets.ISO_8859_1);
+//						File f = new File("./src/server/files/" + currentUser.getId() + ".cer");
+//						FileInputStream fis = new FileInputStream(f);
+//						CertificateFactory cf = CertificateFactory.getInstance("X509");
+//						Certificate cert = cf.generateCertificate(fis);
+//						fis.close();
+//						PublicKey pk = cert.getPublicKey();
+//						Cipher c = Cipher.getInstance("RSA");
+//						c.init(Cipher.DECRYPT_MODE, pk);
+//						byte[] bytes = new byte[1000];
+//						final ByteBuffer buffer = ByteBuffer.allocate(message.getBytes().length*8).put(message.getBytes(StandardCharsets.ISO_8859_1));
+////						buffer.put();
+//						buffer.rewind();
+//						buffer.get(bytes);
+//					//	c.update(buffer.get);
+//						//c.update(message.getBytes(StandardCharsets.ISO_8859_1));
+//						System.out.println(message);
 					}
+					return "Mensagem enviada com sucesso!";
 					//return here
 				}
 				
@@ -707,7 +708,7 @@ public class TintolmarketServer {
 						return "Nao tem mensagens para ler";
 					}
 					else {
-						String fullInbox = currentUser.displayMessages_();
+						String fullInbox = currentUser.displayMessages();
 //						StringBuilder sb = new StringBuilder();
 //						String sender = "";
 //						for(String message : fullInbox.split(System.getProperty("line.separator"))) {
@@ -770,8 +771,8 @@ public class TintolmarketServer {
 		}
 		
 		Scanner uFileScanner = null;
-		Scanner iFileScanner = null;
 		Scanner bFileScanner = null;
+		Scanner iFileScanner = null;
 		String[] credentials;
 		String[] info;
 
@@ -780,8 +781,8 @@ public class TintolmarketServer {
 //			uFileScanner = new Scanner(userDB);
 			uFileScanner = new Scanner(decryptedUserDB);
 			bFileScanner = new Scanner(balanceDB);
-			iFileScanner = new Scanner(inboxDB);
-		} catch (FileNotFoundException e) {
+			iFileScanner = new Scanner(inboxDB, StandardCharsets.ISO_8859_1);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
@@ -801,6 +802,76 @@ public class TintolmarketServer {
 			info = bFileScanner.nextLine().split(":");
 			userCatalog.getUser(info[0]).setBalance(Integer.parseInt(info[1]));
 		}
+		
+//		StringBuilder sb = new StringBuilder();
+//		StringBuilder crypto = new StringBuilder();
+//		String[] prevLine = null;
+//		while(iFileScanner.hasNextLine()) {
+//			String line = iFileScanner.nextLine();
+//			String[] splitLine = line.split(":::::");
+// 			if(splitLine.length == 3 && prevLine == null) {
+// 				sb.append(splitLine[2]);
+// 				prevLine = splitLine.clone();			
+// 			}
+// 			else if(splitLine.length == 3 && prevLine.length == 3){
+// 				//System.out.println(sb.toString());
+//// 				System.out.println(sb.toString());
+// 				userCatalog.getUser(prevLine[0]).loadMessages(prevLine[1], sb.toString());
+// 				sb.setLength(0);
+// 				crypto.setLength(0);
+// 				sb.append(splitLine[2]);
+// 				if(splitLine[0].equals("rodolfo")) {
+// 					try {
+// 						File f = new File("./src/server/files/" + splitLine[0] + ".cer");
+// 						FileInputStream fis = new FileInputStream(f);
+// 						CertificateFactory cf = CertificateFactory.getInstance("X509");
+// 						Certificate cert = cf.generateCertificate(fis);
+// 						fis.close();
+// 						PublicKey pk = cert.getPublicKey();
+// 						Charset charset = StandardCharsets.ISO_8859_1;
+// 						Cipher c = Cipher.getInstance("RSA");
+// 						c.init(Cipher.DECRYPT_MODE, pk);
+// 						System.out.println(splitLine[2]);
+// 						crypto.append(new String(c.doFinal(splitLine[2].getBytes(charset)),charset) + System.getProperty("line.separator")); 					
+// 						System.out.println(crypto);
+//// 						System.out.println(new String(c.doFinal(sb.toString().getBytes(charset)), charset));
+// 					} catch (IOException | CertificateException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+// 						// TODO Auto-generated catch block
+// 						e.printStackTrace();
+// 					}
+// 				}
+// 				prevLine = splitLine.clone();	
+// 			}
+// 			else if(splitLine.length == 1) {
+// 				if(splitLine[0].equals("rodolfo")) {
+//					try {
+// 						File f = new File("./src/server/files/" + prevLine[0] + ".cer");
+// 						FileInputStream fis = new FileInputStream(f);
+// 						CertificateFactory cf = CertificateFactory.getInstance("X509");
+// 						Certificate cert = cf.generateCertificate(fis);
+// 						fis.close();
+// 						PublicKey pk = cert.getPublicKey();
+// 						Charset charset = StandardCharsets.ISO_8859_1;
+// 						Cipher c = Cipher.getInstance("RSA");
+// 						c.init(Cipher.DECRYPT_MODE, pk);
+// 						System.out.println(crypto);
+// 						crypto.append(new String(c.doFinal(line.getBytes(charset)),charset) + System.getProperty("line.separator")); 					
+//// 						System.out.println(new String(c.doFinal(sb.toString().getBytes(charset)), charset));
+// 					} catch (IOException | CertificateException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+// 						// TODO Auto-generated catch block
+// 						e.printStackTrace();
+// 					}
+// 				sb.append(line + System.getProperty("line.separator"));
+// 				//crypto.append(false)
+// 			}
+// 			}
+//		}
+//		if(!sb.isEmpty()) {
+//			userCatalog.getUser(prevLine[0]).loadMessages(prevLine[1], sb.toString());
+//				System.out.println(crypto.toString());
+//		}
+
+		
 		iFileScanner.useDelimiter("STRING MUITO____IMPROVAVEL_(())__NUNCA VAI ACONTECER");
 		String regex = "\\S+:::::(?s).*?(?=\\S+:::::|\\z)";		
 		Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE | Pattern.DOTALL);
@@ -809,17 +880,30 @@ public class TintolmarketServer {
 		
 		while (matcher.find()) {
 			info = matcher.group(0).split(":::::");
+			if(info[2].substring(info[2].length() - 1, info[2].length()).equals("\n")){				
+				info[2] = info[2].substring(0, info[2].length() - 2);
+			}
+			if(info[2].substring(0, 1).equals("\n")) {
+				info[2] = info[2].substring(1, info[2].length() - 1);				
+			}
 			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
-          //  System.out.println("Full match: " + matcher.group(0));
+	
+			
+			
+			
+			
+			
+//				System.out.println(userCatalog.getUser(info[0]).displayMessages());
+//            System.out.println("Full match: " + matcher.group(0));
             
         }
 		
-		while(iFileScanner.hasNext(pattern)) {
-			System.out.println("entrei");
-	//	while(iFileScanner.hasNextLine()) {
-			info = iFileScanner.next(pattern).split(":::::");
-			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
-		}
+//		while(iFileScanner.hasNext(pattern)) {
+//			System.out.println("entrei");
+//	//	while(iFileScanner.hasNextLine()) {
+//			info = iFileScanner.next(pattern).split(":::::");
+//			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
+//		}
 		
 		uFileScanner.close();
 		iFileScanner.close();
@@ -1088,7 +1172,6 @@ public class TintolmarketServer {
 	    		databaseContent = sb.toString();
 	    		oldLine = "";
 	    	}
-		    generateNewMAC(inboxDB, inboxMAC);
 	    }
 	    
 	    if(databaseContent.endsWith(System.getProperty("line.separator"))) {
@@ -1109,6 +1192,7 @@ public class TintolmarketServer {
 	    } catch (IOException e) {
 	    	e.printStackTrace();
 	    }
+	    generateNewMAC(inboxDB, inboxMAC);
 	}
 	
 	private synchronized void updateBalanceEntry(String seller, String buyer) {

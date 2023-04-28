@@ -67,7 +67,6 @@ import server.blockchain.BlockchainHandler;
 
 public class TintolmarketServer {
 
-	//private static final String user_database = "./src/server/files/user_database.txt";
 	private static final String wine_database = "./src/server/files/wine_database.txt";
 	private static final String winesellers_database = "./src/server/files/winesellers_database.txt";
 	private static final String inbox_database = "./src/server/files/inbox_database.txt";
@@ -82,7 +81,6 @@ public class TintolmarketServer {
 	private UserCatalog userCatalog;
 	private WineCatalog wineCatalog;
 
-	//private File userDB;
 	private File wineDB;
 	private File sellersDB;
 	private File inboxDB;
@@ -95,7 +93,6 @@ public class TintolmarketServer {
 	private String keystorePath;
 	private String keystorePassword;
 
-//	private File userMAC;
 	private File wineMAC;
 	private File sellersMAC;
 	private File inboxMAC;
@@ -150,13 +147,6 @@ public class TintolmarketServer {
 
 		cypherParams = new File(cypher_params);
 
-		//verifica se o ficheiro de base de dados de clientes existe.
-//		userDB = new File(user_database);
-//		if (!userDB.exists()){
-//			System.out.println("Base de dados de clientes nao encontrada!");
-//			return;
-//		}
-
 		encryptedUserDB = new File("./src/server/files/user_database.cif");
 		if (!encryptedUserDB.exists()){
 			System.out.println("Base de dados de clientes cifrada nao encontrada!");
@@ -195,7 +185,6 @@ public class TintolmarketServer {
 		//Carrega a base de dados para memoria
 		userCatalog = new UserCatalog();
 		decryptedUserDB = new File("./src/server/files/new_user_database.txt");
-		//startEncryptUserDatabase();
 		decryptUserDatabase();
 		loadUserDatabase();
 		encryptUserDatabase();
@@ -310,7 +299,6 @@ public class TintolmarketServer {
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.flush();
 							fw.close();
-							//generateNewMAC(encryptedUserDB, encryptedUserMAC);
 							encryptUserDatabase();				
 							decryptedUserDB.delete();
 
@@ -674,7 +662,6 @@ public class TintolmarketServer {
 
 		//cria um scanner para ler o ficheiro
 		try {
-			//uFileScanner = new Scanner(userDB);
 			uFileScanner = new Scanner(decryptedUserDB);
 			bFileScanner = new Scanner(balanceDB);
 			iFileScanner = new Scanner(inboxDB, StandardCharsets.ISO_8859_1);
@@ -1019,37 +1006,6 @@ public class TintolmarketServer {
 			output.close();
 		} catch (IOException | ClassNotFoundException e) {e.printStackTrace();}
 	}
-
-//	public void startEncryptUserDatabase() {
-//		try {		
-//			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
-//			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20);
-//			SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
-//			SecretKey key = kf.generateSecret(keySpec);
-//
-//			Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
-//			c.init(Cipher.ENCRYPT_MODE, key);
-//
-//			FileInputStream origfis = new FileInputStream(userDB);
-//			byte[] enc = c.doFinal(origfis.readAllBytes());
-//			byte[] params = c.getParameters().getEncoded();
-//
-//			FileOutputStream encfos = new FileOutputStream(encryptedUserDB);
-//			encfos.write(enc);
-//
-//			FileOutputStream paramfos = new FileOutputStream(cypherParams);
-//			paramfos.write(params);
-//
-//			origfis.close();
-//			encfos.flush();
-//			encfos.close();
-//			paramfos.flush();
-//			paramfos.close();
-//		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
-//			e.printStackTrace();
-//		}
-//		generateNewMAC(encryptedUserDB, encryptedUserMAC);
-//	}
 
 	public void encryptUserDatabase() {
 		try {		

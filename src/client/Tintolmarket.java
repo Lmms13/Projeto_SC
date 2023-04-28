@@ -153,7 +153,7 @@ public class Tintolmarket {
 					receiveImage(request, inStream);
 				}
 				else if(request.startsWith("s") || request.startsWith("sell") ||
-						request.startsWith("s") || request.startsWith("sell")) {			
+						request.startsWith("b") || request.startsWith("buy")) {			
 					KeyStore keystore = KeyStore.getInstance("JCEKS");
 					FileInputStream keystore_fis = new FileInputStream(keystorePath);
 					keystore.load(keystore_fis, keystorePassword.toCharArray());

@@ -233,6 +233,9 @@ public class TintolmarketServer {
 			if(blockchain.checkIntegrity()) {
 				blockchain.loadBlockchain();
 			}
+			else {
+				System.out.println("A integridade da blockchain foi violada.");
+			}
 		} catch (UnrecoverableKeyException | InvalidKeyException | NoSuchAlgorithmException | KeyStoreException
 				| CertificateException | ClassNotFoundException | IOException e1) {
 			System.out.println("Ocorreu um erro a aceder a blockchain");
@@ -359,7 +362,7 @@ public class TintolmarketServer {
 								sendImage(request, outStream);
 							}
 							else if(request.startsWith("s") || request.startsWith("sell") || 
-									request.startsWith("s") || request.startsWith("sell")) {
+									request.startsWith("b") || request.startsWith("buy")) {
 								byte[] requestSignature = (byte[]) inStream.readObject();
 								File f = new File("./src/server/files/" + clientID + ".cer");
 								FileInputStream fis = new FileInputStream(f);
@@ -1142,7 +1145,7 @@ public class TintolmarketServer {
 	public void startEncryptUserDatabase() {
 		try {		
 			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
-			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20); // pass, salt, iterations
+			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20);
 			SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
 			SecretKey key = kf.generateSecret(keySpec);
 
@@ -1173,7 +1176,7 @@ public class TintolmarketServer {
 	public void encryptUserDatabase() {
 		try {		
 			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
-			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20); // pass, salt, iterations
+			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20);
 			SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
 			SecretKey key = kf.generateSecret(keySpec);
 
@@ -1205,7 +1208,7 @@ public class TintolmarketServer {
 		try {		
 			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea, (byte) 0xf2 };
 
-			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20); // pass, salt, iterations
+			PBEKeySpec keySpec = new PBEKeySpec(cypherPassword.toCharArray(), salt, 20);
 			SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
 			SecretKey key = kf.generateSecret(keySpec);
 

@@ -3,6 +3,28 @@ Luis Santos 56341
 Pedro Pinto 56369
 Daniel Marques 56379
 
+----------------AMBIENTE----------------
+O projeto foi desenvolvido por todos os elementos em Windows
+e, infelizmente, ao testar no ambiente de laboratorio do DI,
+surgiram alguns problemas.
+Primeiro, foi preciso atualizar a versao do Java com:
+sudo apt install openjdk-19-jdk 
+
+Depois, os jars tinham de ser executados sempre com sudo.
+
+Para alem disso, devido ao encoding usado no desenvolvimento,
+tornou-se impossivel de ler as mensagens decifradas quando o
+programa e executado no ambiente de laboratorio.
+
+O grupo assume a responsabilidade por este lapso, mas como a
+necessidade de ter o programa a funcionar corretamente no
+ambiente de laboratorio nao estava mencionada no enunciado,
+o grupo nao considerou esse facto relevante durante o 
+desenvolvimento do projeto.
+
+Pedimos desculpa pela inconveniencia e pedimos que, se possivel,
+o projeto seja avaliado em Windows.
+
 ----------------EXECUCAO----------------
 
 O ficheiro .jar do servidor executa-se com o comando:

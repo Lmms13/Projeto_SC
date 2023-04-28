@@ -23,6 +23,9 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.AlgorithmParameters;
@@ -31,6 +34,7 @@ import java.security.InvalidKeyException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
@@ -42,10 +46,13 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -68,6 +75,11 @@ public class TintolmarketServer {
 	private static final String winesellers_database = "./src/server/files/winesellers_database.txt";
 	private static final String inbox_database = "./src/server/files/inbox_database.txt";
 	private static final String balance_database = "./src/server/files/balance_database.txt";
+	private static final String encrypted_user_mac = "./src/server/files/encrypted_user_mac.txt";
+	private static final String wine_mac = "./src/server/files/wine_mac.txt";
+	private static final String winesellers_mac = "./src/server/files/winesellers_mac.txt";
+	private static final String inbox_mac = "./src/server/files/inbox_mac.txt";
+	private static final String balance_mac = "./src/server/files/balance_mac.txt";
 	private UserCatalog userCatalog;
 	private WineCatalog wineCatalog;
 	private File userDB;
@@ -81,6 +93,15 @@ public class TintolmarketServer {
 	private String cypherPassword;
 	private String keystorePath;
 	private String keystorePassword;
+	
+	private File userMAC;
+	private File wineMAC;
+	private File sellersMAC;
+	private File inboxMAC;
+	private File balanceMAC;
+	private File encryptedUserMAC;
+	
+	private Charset charset = StandardCharsets.ISO_8859_1;
 	
 	private BlockchainHandler blockchain = new BlockchainHandler();
 	
@@ -151,9 +172,8 @@ public class TintolmarketServer {
 			return;
 		}
 		
-		decryptedUserDB = new File("./src/server/files/new_user_database.txt");
+		encryptedUserMAC = new File(encrypted_user_mac);
 		
-		startEncryptUserDatabase();
 		//verifica se o ficheiro de base de dados de saldo existe.
 		balanceDB = new File(balance_database);
 		if (!balanceDB.exists()){
@@ -161,18 +181,23 @@ public class TintolmarketServer {
 			return;
         }
 		
+		balanceMAC = new File(balance_mac);
+		
 		//verifica se o ficheiro de base de dados de clientes existe.
 		inboxDB = new File(inbox_database);
 		if (!inboxDB.exists()){
 			System.out.println("Base de dados de caixa de mensagens não encontrada!");
 			return;
         }
-		
-		if(true);
+
+		inboxMAC = new File(inbox_mac);
 		
 		//Carrega a base de dados para memória
 		userCatalog = new UserCatalog();
-		//decryptedUserDB = NEW fILE
+		decryptedUserDB = new File("./src/server/files/new_user_database.txt");
+	    //generateNewMAC(inboxDB, inboxMAC);
+		startEncryptUserDatabase();
+		generateNewMAC(encryptedUserDB, encryptedUserMAC);
 		decyptUserDatabase();
 		loadUserDatabase();
 		encryptUserDatabase();
@@ -185,6 +210,8 @@ public class TintolmarketServer {
 			return;
         }
 		
+		wineMAC = new File(wine_mac);
+		
 		//verifica se o ficheiro de base de dados de vendedores existe.
 		sellersDB = new File(winesellers_database);
 		if (!sellersDB.exists()){
@@ -192,9 +219,14 @@ public class TintolmarketServer {
 			return;
 		}
 		
+		sellersMAC = new File(winesellers_mac);
+
 		//Carrega a base de dados para memória
 		wineCatalog = new WineCatalog();
 		loadWineDatabase();
+		
+		//System.out.println(checkIntegrity(wineDB, wineMAC));
+		//checkIntegrity(wineDB, new File("./src/server/files/wineMAC.txt"));
 		
 		try {
 			if(blockchain.checkIntegrity()) {
@@ -283,11 +315,15 @@ public class TintolmarketServer {
 							userCatalog.addUser(clientID, "./src/server/files/" + clientID + ".cer");
 							currentUser = userCatalog.getUser(clientID);
 							
+							if(!checkIntegrity(encryptedUserDB, encryptedUserMAC)) {
+								System.out.println("A integridade da base de dados de utilizadores foi violada.");
+							}
 							decyptUserDatabase();
 							FileWriter fw = new FileWriter(decryptedUserDB, true);
 							fw.write(System.getProperty("line.separator") + currentUser.toString());
 							fw.close();
 							decryptedUserDB.delete();
+							generateNewMAC(encryptedUserDB, encryptedUserMAC);
 							
 							FileWriter fw1 = new FileWriter(balance_database, true);
 							fw1.write(System.getProperty("line.separator") + currentUser.getId() + ":" + currentUser.getBalance());
@@ -451,10 +487,14 @@ public class TintolmarketServer {
 					}
 					else {
 						synchronized(this){
+							if(!checkIntegrity(wineDB, wineMAC)) {
+								System.out.println("A integridade da base de dados de vinho foi violada.");
+							}
 							wineCatalog.addWine(words[1], words[2]);
 							FileWriter fw = new FileWriter(wine_database, true);
 							fw.write(System.getProperty("line.separator") + wineCatalog.getWine(words[1]).toString());
-							fw.close();						
+							fw.close();	
+							generateNewMAC(wineDB, wineMAC);
 						}
 					}
 					return "Vinho adicionado a base de dados!";
@@ -483,16 +523,20 @@ public class TintolmarketServer {
 						}
 						else{
 							synchronized(this){
+								if(!checkIntegrity(sellersDB, sellersMAC)) {
+									System.out.println("A integridade da base de dados de vendedores de vinho foi violada.");
+								}
 								w.addSeller(currentUser.getId(), price, quantity);							
 								FileWriter fw = new FileWriter(winesellers_database, true);
 								fw.write(System.getProperty("line.separator") + w.sellerToString(currentUser.getId()));
 								fw.flush();
 								fw.close();
+								generateNewMAC(sellersDB, sellersMAC);
 								updateWineEntry(w.getId());
 							}
 						}
 						synchronized (this) {
-							blockchain.newTransaction(w.getId() + ":" + quantity + ":" + price + ":" + currentUser.getId());							
+							blockchain.newTransaction("S:" + w.getId() + ":" + quantity + ":" + price + ":" + currentUser.getId());							
 						}
 						return "Vinho colocado a venda com sucesso!";
 					}
@@ -561,7 +605,7 @@ public class TintolmarketServer {
 								updateWineEntry(w.getId());
 								updateBalanceEntry(u.getId(), currentUser.getId());
 								
-								blockchain.newTransaction(w.getId() + ":" + quantity + ":" + s.getPrice() + ":" + currentUser.getId());							
+								blockchain.newTransaction("B:" + w.getId() + ":" + quantity + ":" + s.getPrice() + ":" + currentUser.getId());							
 								
 								return "Compra efetuada com sucesso!";
 							}
@@ -606,21 +650,65 @@ public class TintolmarketServer {
 					return "O utilizador nao existe na base de dados!";	
 				}
 				else {
-					synchronized (this) {					
+					synchronized (this) {
 						User u = userCatalog.getUser(words[1]);
 						String message = String.join(" ", Arrays.copyOfRange(words, 2, words.length));
+						
+//						File f = new File("./src/server/files/" + u.getId() + ".cer");
+//						FileInputStream fis = new FileInputStream(f);
+//						CertificateFactory cf = CertificateFactory.getInstance("X509");
+//						Certificate cert = cf.generateCertificate(fis);
+//						fis.close();
+//						PublicKey pk = cert.getPublicKey();
+//						Cipher c = Cipher.getInstance("AES");
+//						Charset charset = StandardCharsets.ISO_8859_1;
+//					    c.init(Cipher.ENCRYPT_MODE, pk);
+//					    String encrypted = new String(c.doFinal(message.getBytes(charset)), charset);						
+						
 						if(u.hasSender(currentUser.getId())) {
 							u.addMessage(currentUser.getId(), message);
 							updateInboxEntry(u.getId(), currentUser.getId(), message);
+//							u.addMessage(currentUser.getId(), encrypted);
+//							updateInboxEntry(u.getId(), currentUser.getId(), encrypted);
 						}
 						else {
+							if(!checkIntegrity(inboxDB, inboxMAC)) {
+								System.out.println("A integridade da base de dados de mensagens de vinho foi violada.");
+							}
 							u.addMessage(currentUser.getId(), message);
-							FileWriter fw = new FileWriter(inbox_database, true);
-							fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);
-							fw.close();						
+//							u.addMessage(currentUser.getId(), encrypted);
+
+							FileWriter fw = new FileWriter(inbox_database, charset, true);
+							Scanner sc = new Scanner(inboxDB);
+							if(!sc.hasNextLine()) {
+								fw.write(u.getId() + ":::::" + currentUser.getId() + ":::::" + message);								
+							}
+							else {
+								fw.write(System.getProperty("line.separator") + u.getId() + ":::::" + currentUser.getId() + ":::::" + message);								
+							}
+							sc.close();
+							fw.close();		
+							generateNewMAC(inboxDB, inboxMAC);
 						}
+//						File f = new File("./src/server/files/" + currentUser.getId() + ".cer");
+//						FileInputStream fis = new FileInputStream(f);
+//						CertificateFactory cf = CertificateFactory.getInstance("X509");
+//						Certificate cert = cf.generateCertificate(fis);
+//						fis.close();
+//						PublicKey pk = cert.getPublicKey();
+//						Cipher c = Cipher.getInstance("RSA");
+//						c.init(Cipher.DECRYPT_MODE, pk);
+//						byte[] bytes = new byte[1000];
+//						final ByteBuffer buffer = ByteBuffer.allocate(message.getBytes().length*8).put(message.getBytes(StandardCharsets.ISO_8859_1));
+////						buffer.put();
+//						buffer.rewind();
+//						buffer.get(bytes);
+//					//	c.update(buffer.get);
+//						//c.update(message.getBytes(StandardCharsets.ISO_8859_1));
+//						System.out.println(message);
 					}
 					return "Mensagem enviada com sucesso!";
+					//return here
 				}
 				
 			} else if (command.equals("read") || command.equals("r")) {
@@ -630,6 +718,26 @@ public class TintolmarketServer {
 					}
 					else {
 						String fullInbox = currentUser.displayMessages();
+//						StringBuilder sb = new StringBuilder();
+//						String sender = "";
+//						for(String message : fullInbox.split(System.getProperty("line.separator"))) {
+//							if(message.startsWith("---") || message.length() == 0) {
+//								sender = message.split("---")[0];
+//								System.out.println(sender);
+//							}
+//							else{
+//								File f = new File("./src/server/files/" + sender + ".cer");
+//								FileInputStream fis = new FileInputStream(f);
+//								CertificateFactory cf = CertificateFactory.getInstance("X509");
+//								Certificate cert = cf.generateCertificate(fis);
+//								fis.close();
+//								PublicKey pk = cert.getPublicKey();
+//								Cipher c = Cipher.getInstance("AES");
+//								Charset charset = StandardCharsets.ISO_8859_1;
+//							    c.init(Cipher.DECRYPT_MODE, pk);
+//								sb.append(message + System.getProperty("line.separator"));
+//							}
+//						}
 						currentUser.clearMessages();
 						updateInboxEntry(currentUser.getId(), "none", "none");
 						return fullInbox;
@@ -658,10 +766,22 @@ public class TintolmarketServer {
 				+ System.getProperty("line.separator"));
 	}
 	
-	private void loadUserDatabase() {
+	private void loadUserDatabase() {		
+		if(!checkIntegrity(encryptedUserDB, encryptedUserMAC)) {
+			System.out.println("A integridade da base de dados de utilizadores foi violada.");
+		}
+		
+		if(!checkIntegrity(inboxDB, inboxMAC)) {
+			System.out.println("A integridade da base de dados de mensagens foi violada.");
+		}
+		
+		if(!checkIntegrity(balanceDB, balanceMAC)) {
+			System.out.println("A integridade da base de dados de saldo foi violada.");
+		}
+		
 		Scanner uFileScanner = null;
-		Scanner iFileScanner = null;
 		Scanner bFileScanner = null;
+		Scanner iFileScanner = null;
 		String[] credentials;
 		String[] info;
 
@@ -670,8 +790,8 @@ public class TintolmarketServer {
 //			uFileScanner = new Scanner(userDB);
 			uFileScanner = new Scanner(decryptedUserDB);
 			bFileScanner = new Scanner(balanceDB);
-			iFileScanner = new Scanner(inboxDB);
-		} catch (FileNotFoundException e) {
+			iFileScanner = new Scanner(inboxDB, StandardCharsets.ISO_8859_1);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
@@ -692,10 +812,109 @@ public class TintolmarketServer {
 			userCatalog.getUser(info[0]).setBalance(Integer.parseInt(info[1]));
 		}
 		
-		while(iFileScanner.hasNextLine()) {
-			info = iFileScanner.nextLine().split(":::::");
-			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
+//		StringBuilder sb = new StringBuilder();
+//		StringBuilder crypto = new StringBuilder();
+//		String[] prevLine = null;
+//		while(iFileScanner.hasNextLine()) {
+//			String line = iFileScanner.nextLine();
+//			String[] splitLine = line.split(":::::");
+// 			if(splitLine.length == 3 && prevLine == null) {
+// 				sb.append(splitLine[2]);
+// 				prevLine = splitLine.clone();			
+// 			}
+// 			else if(splitLine.length == 3 && prevLine.length == 3){
+// 				//System.out.println(sb.toString());
+//// 				System.out.println(sb.toString());
+// 				userCatalog.getUser(prevLine[0]).loadMessages(prevLine[1], sb.toString());
+// 				sb.setLength(0);
+// 				crypto.setLength(0);
+// 				sb.append(splitLine[2]);
+// 				if(splitLine[0].equals("rodolfo")) {
+// 					try {
+// 						File f = new File("./src/server/files/" + splitLine[0] + ".cer");
+// 						FileInputStream fis = new FileInputStream(f);
+// 						CertificateFactory cf = CertificateFactory.getInstance("X509");
+// 						Certificate cert = cf.generateCertificate(fis);
+// 						fis.close();
+// 						PublicKey pk = cert.getPublicKey();
+// 						Charset charset = StandardCharsets.ISO_8859_1;
+// 						Cipher c = Cipher.getInstance("RSA");
+// 						c.init(Cipher.DECRYPT_MODE, pk);
+// 						System.out.println(splitLine[2]);
+// 						crypto.append(new String(c.doFinal(splitLine[2].getBytes(charset)),charset) + System.getProperty("line.separator")); 					
+// 						System.out.println(crypto);
+//// 						System.out.println(new String(c.doFinal(sb.toString().getBytes(charset)), charset));
+// 					} catch (IOException | CertificateException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+// 						// TODO Auto-generated catch block
+// 						e.printStackTrace();
+// 					}
+// 				}
+// 				prevLine = splitLine.clone();	
+// 			}
+// 			else if(splitLine.length == 1) {
+// 				if(splitLine[0].equals("rodolfo")) {
+//					try {
+// 						File f = new File("./src/server/files/" + prevLine[0] + ".cer");
+// 						FileInputStream fis = new FileInputStream(f);
+// 						CertificateFactory cf = CertificateFactory.getInstance("X509");
+// 						Certificate cert = cf.generateCertificate(fis);
+// 						fis.close();
+// 						PublicKey pk = cert.getPublicKey();
+// 						Charset charset = StandardCharsets.ISO_8859_1;
+// 						Cipher c = Cipher.getInstance("RSA");
+// 						c.init(Cipher.DECRYPT_MODE, pk);
+// 						System.out.println(crypto);
+// 						crypto.append(new String(c.doFinal(line.getBytes(charset)),charset) + System.getProperty("line.separator")); 					
+//// 						System.out.println(new String(c.doFinal(sb.toString().getBytes(charset)), charset));
+// 					} catch (IOException | CertificateException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+// 						// TODO Auto-generated catch block
+// 						e.printStackTrace();
+// 					}
+// 				sb.append(line + System.getProperty("line.separator"));
+// 				//crypto.append(false)
+// 			}
+// 			}
+//		}
+//		if(!sb.isEmpty()) {
+//			userCatalog.getUser(prevLine[0]).loadMessages(prevLine[1], sb.toString());
+//				System.out.println(crypto.toString());
+//		}
+
+		iFileScanner.useDelimiter("STRING MUITO____IMPROVAVEL_(())__NUNCA VAI ACONTECER");
+		if(iFileScanner.hasNext()) {
+
+			String regex = "\\S+:::::(?s).*?(?=\\S+:::::|\\z)";		
+			Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE | Pattern.DOTALL);
+			Matcher matcher = pattern.matcher(iFileScanner.next());
+			//System.out.println(iFileScanner.next());
+
+			while (matcher.find()) {
+				info = matcher.group(0).split(":::::");
+				if(info[2].substring(info[2].length() - 1, info[2].length()).equals("\n")){				
+					info[2] = info[2].substring(0, info[2].length() - 2);
+				}
+				if(info[2].substring(0, 1).equals("\n")) {
+					info[2] = info[2].substring(1, info[2].length() - 1);				
+				}
+				userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
+
+
+
+
+
+
+				//				System.out.println(userCatalog.getUser(info[0]).displayMessages());
+				//            System.out.println("Full match: " + matcher.group(0));
+
+			}
 		}
+		
+//		while(iFileScanner.hasNext(pattern)) {
+//			System.out.println("entrei");
+//	//	while(iFileScanner.hasNextLine()) {
+//			info = iFileScanner.next(pattern).split(":::::");
+//			userCatalog.getUser(info[0]).loadMessages(info[1], info[2]);
+//		}
 		
 		uFileScanner.close();
 		iFileScanner.close();
@@ -705,6 +924,14 @@ public class TintolmarketServer {
 	}
 	
 	private void loadWineDatabase() {
+		if(!checkIntegrity(wineDB, wineMAC)) {
+			System.out.println("A integridade da base de dados de vinho foi violada.");
+		}
+		
+		if(!checkIntegrity(sellersDB, sellersMAC)) {
+			System.out.println("A integridade da base de dados de vendedores foi violada.");
+		}
+		
 		Scanner wFileScanner = null;
 		Scanner sFileScanner = null;
 		String[] info;
@@ -738,6 +965,10 @@ public class TintolmarketServer {
 	}
 	
 	private synchronized void updateSellerEntry(String wine, String seller) {
+		if(!checkIntegrity(sellersDB, sellersMAC)) {
+			System.out.println("A integridade da base de dados de vendedores foi violada.");
+		}
+		
 		Scanner sc = null;
 		String line;
 		String[] words;
@@ -793,9 +1024,14 @@ public class TintolmarketServer {
 	    } catch (IOException e) {
 	    	e.printStackTrace();
 	    }
+	    generateNewMAC(sellersDB, sellersMAC);
 	}
 	
 	private synchronized void updateWineEntry(String wine) {
+		if(!checkIntegrity(wineDB, wineMAC)) {
+			System.out.println("A integridade da base de dados de vinho foi violada.");
+		}
+		
 		Scanner sc = null;
 		String line;
 		String[] words;
@@ -841,14 +1077,23 @@ public class TintolmarketServer {
 	    } catch (IOException e) {
 	    	e.printStackTrace();
 	    }    
+	    
+	    generateNewMAC(wineDB, wineMAC);
 	}
 	
 	private synchronized void updateInboxEntry(String recipient, String sender, String message) {
+		if(!checkIntegrity(inboxDB, inboxMAC)) {
+			System.out.println("A integridade da base de dados de mensagens foi violada.");
+		}
+		
 		Scanner sc = null;
 		String line;
 		String[] words;
 		String oldLine = "";
 		boolean clear = !userCatalog.getUser(recipient).hasMessages();
+		boolean continuation = false;
+		String firstMessage = "";
+		boolean first = true;
 		try {
 			sc = new Scanner(inboxDB);
 		} catch (FileNotFoundException e) {
@@ -861,16 +1106,37 @@ public class TintolmarketServer {
 	    	line = sc.nextLine();
 	    	words = line.split(":::::");
 	    	
+	    	if(first) {
+	    		firstMessage = words[0] + ":::::" + words[1];
+	    		first = false;
+	    	}
+	    	
+	    	
 	    	if(words[0].equals(recipient) && clear) {
+	    		continuation = true;
 	    		continue;
 	    	}
+	    	if(continuation && clear) {
+	    		if(words.length == 1) {
+	    			continue;			
+	    		}
+	    		else {
+	    			continuation = false;    			
+	    		}
+	    	}
+
 	    	if(!sc.hasNextLine()) {
 	    		buffer.append(line);
 	    	}
 	    	else{
 	    		buffer.append(line + System.getProperty("line.separator"));
 	    	}
+	    	System.out.println(words[0]);
+	    	System.out.println(recipient);
+	    	System.out.println(words[1]);
+	    	System.out.println(sender);
 	    	if(words[0].equals(recipient) && words[1].equals(sender)) {
+	    		System.out.println("oldline");
 	    		oldLine = line;
 	    	}
 	    }
@@ -878,8 +1144,11 @@ public class TintolmarketServer {
 	    String databaseContent = buffer.toString();
 	    
 	    if(!clear && oldLine.length() > 0) {
+	    	StringBuilder builder = new StringBuilder(databaseContent);
+	    	builder.replace(builder.indexOf(oldLine), builder.indexOf(oldLine) + oldLine.length(), userCatalog.getUser(recipient).getMessagesFromSender(sender));
+	    	databaseContent = builder.toString();
 	    	//System.out.println(message);
-	    	databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
+	    	//databaseContent = databaseContent.replaceAll(oldLine, userCatalog.getUser(recipient).getMessagesFromSender(sender));	   
 	    	//System.out.println(databaseContent);
 //	    	/*o replaceAll adiciona '?' quando a mensagem anterior acabava em '?'
 //	    	 * e nao sei porque, mas eventualmente rebentava e nao dava para adicionar
@@ -902,14 +1171,22 @@ public class TintolmarketServer {
 //	    		databaseContent = sb.toString();
 //	    		oldLine = "";	
 //	    	}
-	    //	databaseContent = databaseContent.replaceAll(message + "+^s", message);
-	    //	databaseContent = databaseContent.replaceAll(message + "%", message);
+	    	
+	    	
+	    	
+	    	//databaseContent = databaseContent.replaceAll(message + "\\?", message);
+	    
+	    	
+	    	
+	    	
+	    	//	databaseContent = databaseContent.replaceAll(message + "%", message);
 	    
 	    	/*tratamento muito especifico do erro explicado em cima, a unica solucao
 	    	 *foi apagar a linha e escrever de novo no fim atraves dos dados em memoria.
 	    	 * Este erro nao afetava a memoria, apenas a base de dados, e a 
 	    	 * ordem nao interessa na base de dados*/
 	    	if(!databaseContent.contains(message)) {
+	    		System.out.println("ENTREU AQUI");
 	    		StringBuilder sb = new StringBuilder();
 	    		String[] lines = databaseContent.split(System.getProperty("line.separator"));
 	    		for(String l : lines) {
@@ -926,13 +1203,19 @@ public class TintolmarketServer {
 	    	databaseContent = databaseContent.replaceAll("(\r\n?|\n)$", "");
 	    }
 	    
+	    if(databaseContent.startsWith("(\r\n?|\n)")) {
+	    	System.out.println("entrei");
+	    	databaseContent = databaseContent.replaceAll("^(\r\n?|\n)", "");
+	    }
+	    
 	    FileWriter fw = null;
 	    try {
-	    	fw = new FileWriter(inboxDB);
+	    	fw = new FileWriter(inboxDB, charset);
 	    	fw.append(databaseContent);
 	    	//salvaguarda para a remocao de uma linha da base de dados em runtime
 	    	//tambem e usado para tratar o erro em cima
 	    	if(oldLine.length() == 0 && !clear) {
+	    		//if()
 	    		fw.append(System.getProperty("line.separator") + userCatalog.getUser(recipient).getMessagesFromSender(sender));
 	    	}
 	    	fw.flush();
@@ -940,9 +1223,14 @@ public class TintolmarketServer {
 	    } catch (IOException e) {
 	    	e.printStackTrace();
 	    }
+	    generateNewMAC(inboxDB, inboxMAC);
 	}
 	
 	private synchronized void updateBalanceEntry(String seller, String buyer) {
+		if(!checkIntegrity(balanceDB, balanceMAC)) {
+			System.out.println("A integridade da base de dados de saldo foi violada.");
+		}
+		
 		Scanner sc = null;
 		String line;
 		String[] words;
@@ -1001,6 +1289,7 @@ public class TintolmarketServer {
 	    } catch (IOException e) {
 	    	e.printStackTrace();
 	    }
+	    generateNewMAC(balanceDB, balanceMAC);
 	}
 	
 	private void sendImage(String request, ObjectOutputStream outStream) {
@@ -1177,6 +1466,57 @@ public class TintolmarketServer {
 		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
 			e.printStackTrace();
 			//return null;
+		}
+	}
+	
+	public boolean checkIntegrity(File f, File macFile) {
+		try {
+			Mac mac = Mac.getInstance("HmacSHA256");
+			KeyStore keystore = KeyStore.getInstance("JCEKS");
+			FileInputStream keystore_fis = new FileInputStream("./src/server/blockchain/server.secret");
+			keystore.load(keystore_fis, keystorePassword.toCharArray());
+			SecretKey key = (SecretKey) keystore.getKey("secServer", keystorePassword.toCharArray());
+			mac.init(key);
+			keystore_fis.close();
+
+			FileInputStream fis = new FileInputStream(f);
+			byte[] new_mac = mac.doFinal(fis.readAllBytes());
+			fis.close();
+			
+			FileInputStream macfis = new FileInputStream(macFile);
+			byte[] prev_mac = macfis.readAllBytes();
+			macfis.close();
+			
+			return(Arrays.equals(new_mac, prev_mac));
+			
+//			FileInputStream fis = new FileInputStream(f);
+//			fis.close();
+//			FileOutputStream fos = new FileOutputStream(macFile);
+//			fos.write(mac.doFinal(fis.readAllBytes()));
+//			fos.close();
+
+		} catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException | UnrecoverableKeyException | InvalidKeyException | IllegalStateException e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	public void generateNewMAC(File f, File macFile) {
+		try {		
+			Mac mac = Mac.getInstance("HmacSHA256");
+			KeyStore keystore = KeyStore.getInstance("JCEKS");
+			FileInputStream keystore_fis = new FileInputStream("./src/server/blockchain/server.secret");
+			keystore.load(keystore_fis, keystorePassword.toCharArray());
+			SecretKey key = (SecretKey) keystore.getKey("secServer", keystorePassword.toCharArray());
+			mac.init(key);
+			keystore_fis.close();
+			FileInputStream fis = new FileInputStream(f);
+			FileOutputStream fos = new FileOutputStream(macFile);
+			fos.write(mac.doFinal(fis.readAllBytes()));
+			fis.close();
+			fos.close();
+		} catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException | UnrecoverableKeyException | InvalidKeyException e) {
+			e.printStackTrace();
 		}
 	}
 }

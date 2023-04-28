@@ -35,8 +35,14 @@ public class BlockchainHandler {
 	
 	public void newTransaction(String trx) throws NoSuchAlgorithmException, KeyStoreException, CertificateException, UnrecoverableKeyException, InvalidKeyException, IllegalStateException, ClassNotFoundException {
 		if (currBlock == null) {
-			currBlock = new Block(1L, null , trx);
-			blockchain.add(currBlock);
+			if(blockchain.size() == 0) {
+				currBlock = new Block(1L, null , trx);
+				blockchain.add(currBlock);				
+			}
+			else {
+				currBlock = blockchain.get(blockchain.size() - 1);
+				newTransaction(trx);
+			}
 		}
 		else if(currBlock.isFull()) {
 			this.currHash = this.getHashOfBlock(currBlock);
@@ -187,7 +193,7 @@ public class BlockchainHandler {
 				count++;
 			}
 			catch (FileNotFoundException e) {
-				System.out.println("A blockchain foi carregada em memória!");
+				System.out.println("A blockchain foi carregada em memoria!");
 				break;
 			} catch (ClassNotFoundException | IOException e) {
 				System.out.println("Erro a carregar a blockchain!");

@@ -8,6 +8,7 @@ package client;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,6 +20,8 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
@@ -26,14 +29,21 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocket;
@@ -102,7 +112,6 @@ public class Tintolmarket {
 			long nonce = (long) inStream.readObject();
 			boolean isRegistered = (boolean) inStream.readObject();
 			
-			System.out.println("here");
 			if(!isRegistered) {
 				KeyStore keystore = KeyStore.getInstance("JCEKS");
 				FileInputStream keystore_fis = new FileInputStream(keystorePath);
@@ -160,7 +169,7 @@ public class Tintolmarket {
 			String reply = "";
 			String request = "";
 
-			//realiza o ciclo de interação: menu->resposta do servidor->pedido do cliente
+			//realiza o ciclo de interacao: menu->resposta do servidor->pedido do cliente
 			while(true){
 				if(request.startsWith("a") || request.startsWith("add")) {
 					sendImage(request, outStream);
@@ -174,6 +183,7 @@ public class Tintolmarket {
 					FileInputStream keystore_fis = new FileInputStream(keystorePath);
 					//FileInputStream keystore_fis = new FileInputStream("./src/client/files/pedro.keystore");
 					keystore.load(keystore_fis, keystorePassword.toCharArray());
+					keystore_fis.close();
 					PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
 					//PrivateKey key = (PrivateKey) keystore.getKey("pedro", ("pedro" + ".key").toCharArray());
 					Signature signature = Signature.getInstance("MD5withRSA");
@@ -183,17 +193,152 @@ public class Tintolmarket {
 					outStream.writeObject(signature.sign());
 				}
 				reply = (String) inStream.readObject();
+				if(request.startsWith("r") || request.startsWith("read")) {
+					if(!reply.equals("Nao tem mensagens para ler")) {
+						KeyStore keystore = KeyStore.getInstance("JCEKS");
+						FileInputStream keystore_fis = new FileInputStream(keystorePath);
+						keystore.load(keystore_fis, keystorePassword.toCharArray());
+						keystore_fis.close();
+						PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+						Charset charset = StandardCharsets.ISO_8859_1;
+						Cipher c = Cipher.getInstance("RSA");
+						StringBuilder sb = new StringBuilder();
+						StringBuilder enc = new StringBuilder();
+						String[] lines = reply.split(System.getProperty("line.separator"));
+						for(String line : lines) {
+							if(line.startsWith("---") && enc.isEmpty()) {
+								sb.append(line + System.getProperty("line.separator"));
+							}
+							else if(line.startsWith("---") && !enc.isEmpty()) {
+								String encripted = enc.toString();
+								enc.setLength(0);	
+							//	Cipher c = Cipher.getInstance("RSA");
+								c.init(Cipher.DECRYPT_MODE, key);
+								sb.append(new String(c.doFinal(encripted.getBytes(charset)), charset) + System.getProperty("line.separator"));
+								sb.append(line + System.getProperty("line.separator"));
+							}
+							else {
+								enc.append(line);
+							}
+						}
+					//String[] lines = reply.split(System.getProperty("line.separator"));
+				//	String messages[] = reply.split(request)
+//					for(String messages : reply.split(System.getProperty("line.separator"))) {
+//						if(messages.startsWith("---") || messages.length() == 1) {
+//							sb.append(messages);
+//						}
+//						else {
+//							
+//						}
+//						
+//					}
+					
+
+					
+				//	for(String chat : reply.split("----------" + System.getProperty("line.separator"))) {
+			//			String[] lines = chat.split(System.getProperty("line.separator"));
+//						if(lines.startsWith("---") || lines.equals(System.getProperty("line.separator"))) {
+//							sb.append(messages);
+//						}
+						
+			//			sb.append(lines[0] + System.getProperty("line.separator"));
+						
+//						if(message[0].startsWith("---") || message[0].length() == 0) {
+//						}
+					//	else {
+//							StringBuilder builder = new StringBuilder();
+//							for(int i = 1; i < lines.length; i++) {
+//								if(i != lines.length -1) {
+//									builder.append(lines[i] + System.getProperty("line.separator"));		
+//								}
+//								else {
+//									builder.append(lines[i]);											
+//								}
+//							}
+//							
+//							for(String mess : message) {
+//								System.out.println(mess);
+//								
+//							}
+//							String m = builder.toString();
+//							//System.out.println(m);
+//							PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+//							//PublicKey key = (PublicKey) truststore.getCertificate(sender).getPublicKey();
+//							Cipher c = Cipher.getInstance("RSA");
+//							c.init(Cipher.DECRYPT_MODE, key);
+//							byte[] buf = new byte[256];
+//							ByteArrayInputStream bais = new ByteArrayInputStream(m.getBytes(charset));
+//							while(bais.read(buf) != -1) {
+//								c.update(buf);
+//							}
+//							bais.close();
+							
+						//	c.update(m.getBytes(charset));
+//							System.out.println("BEFORE: " + m);
+//							byte[] data = new byte[256];
+//							ByteArrayInputStream bais = new ByteArrayInputStream(m.getBytes(charset));
+//							BufferedInputStream bis = new BufferedInputStream(bais);
+//							while(bis.read(data) != -1) {
+//								c.update(data);
+//							}
+//							bais.close();
+//							bis.close();
+						
+							
+									//m.getBytes(charset);
+							//c.update(data);
+						//	new String(c.doFinal(splitRequest[2].getBytes(charset)), charset);
+					//		sb.append(new String(c.doFinal(), charset) + System.getProperty("line.separator"));
+						//}
+					//}
+					reply = sb.toString();
+					}
+					
+					
+
+				}
 				System.out.println(reply);
 				reply = (String) inStream.readObject();
 				System.out.println(reply);
 				try {
-					request = sc.nextLine();					
+					request = sc.nextLine();
+					if(request.startsWith("t") || request.startsWith("talk")) {
+						String[] splitRequest = request.split(" ");
+						KeyStore truststore = KeyStore.getInstance("JCEKS");
+						FileInputStream truststore_fis = new FileInputStream(truststorePath);
+						truststore.load(truststore_fis, keystorePassword.toCharArray());
+						truststore_fis.close();
+
+						PublicKey key = (PublicKey) truststore.getCertificate(splitRequest[1]).getPublicKey();
+							//	getKey(clientID, (clientID + ".key").toCharArray());
+						//PrivateKey key = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+						Cipher c = Cipher.getInstance("RSA");
+						Charset charset = StandardCharsets.ISO_8859_1;
+					    c.init(Cipher.ENCRYPT_MODE, key);
+					    String message = String.join(" ", Arrays.copyOfRange(splitRequest, 2, splitRequest.length));
+					    String encrypted = new String(c.doFinal(message.getBytes(charset)), charset);	
+					    
+					    
+					    request = splitRequest[0] + " " + splitRequest[1] + " " + encrypted;
+					
+//					    KeyStore keystore = KeyStore.getInstance("JCEKS");
+//						FileInputStream keystore_fis = new FileInputStream(keystorePath);
+//						keystore.load(keystore_fis, keystorePassword.toCharArray());
+//						keystore_fis.close();
+//						PrivateKey key2 = (PrivateKey) keystore.getKey(clientID, (clientID + ".key").toCharArray());
+//						Cipher c2 = Cipher.getInstance("RSA");
+//						c2.init(Cipher.DECRYPT_MODE, key2);
+//						
+//						System.out.println(new String(c2.doFinal(encrypted.getBytes(charset)), charset));
+					
+					}
 					outStream.writeObject(request);
-				} catch (NoSuchElementException e) {
+				} catch (NoSuchElementException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+					e.printStackTrace();
 					System.out.println("A encerrar servico...");
 				}
 			}
-		} catch (IOException | ClassNotFoundException | KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException | InvalidKeyException | SignatureException e) {
+		} catch (IOException | ClassNotFoundException | KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException | InvalidKeyException | SignatureException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 			e.printStackTrace();
 		}
 		try {

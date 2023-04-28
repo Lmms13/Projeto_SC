@@ -1,3 +1,9 @@
+/*
+Grupo 31
+Luis Santos 56341
+Pedro Pinto 56369
+Daniel Marques 56379
+*/
 package server.blockchain;
 
 import java.io.ByteArrayOutputStream;
@@ -8,8 +14,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
-
-//@SuppressWarnings("serial")
 public class Block implements Serializable {
 	
 	private static final long serialVersionUID = 6529685098267757690L;

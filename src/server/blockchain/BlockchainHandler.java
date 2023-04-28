@@ -1,3 +1,9 @@
+/*
+Grupo 31
+Luis Santos 56341
+Pedro Pinto 56369
+Daniel Marques 56379
+*/
 package server.blockchain;
 
 import java.io.File;
@@ -92,12 +98,8 @@ public class BlockchainHandler {
 			mac.init(key);
 			
 			oos.writeObject(b);
-		//	byte[] data = b.toByteArray();
-			//b.setByteArray(data);
 			mac.update(b.toByteArray());
-			//byte[] signature = mac.doFinal();
 			oos.writeObject(mac.doFinal());
-			//b.setSignature(signature);
 
 			oos.close();
 			fos.close();
@@ -154,7 +156,6 @@ public class BlockchainHandler {
 					keystore.load(keystore_fis, "aulelas.keystore".toCharArray());
 					SecretKey key = (SecretKey) keystore.getKey("secServer", "aulelas.keystore".toCharArray());
 					mac.init(key);
-					//mac.update(b.getByteArray());
 					
 					FileInputStream fis = new FileInputStream(blockchainPath + "block_" + count + ".blk");
 					ObjectInputStream ois = new ObjectInputStream(fis);
@@ -164,8 +165,8 @@ public class BlockchainHandler {
 
 					compromised = compromised || !(b.getBlockId() == prev.getBlockId() + 1);
 					compromised = compromised || !Arrays.equals(b.getPreviousHash(), this.getHashOfBlock(prev).digest());
-//					compromised = compromised || !Arrays.equals(b.getSignature(), mac.doFinal());		
 					compromised = compromised || !Arrays.equals((byte[])ois.readObject(), mac.doFinal());		
+					ois.close();
 				}
 				prev = b;
 				count++;

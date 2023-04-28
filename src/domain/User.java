@@ -15,15 +15,12 @@ public class User {
 	private String password;
 	private int balance;
 	private HashMap<String, List<String>> inbox;
-	//private HashMap<String, HashMap<String, byte[]>> encryptedInbox;
-//	private HashMap<String, List<b>> encryptedInbox;
 
 	public User(String id, String password) {
 		this.userId = id;
 		this.password = password;
 		this.balance = 200;
 		this.inbox = new HashMap<String, List<String>>();
-	//	this.encryptedInbox = new HashMap<String, List<String>>();
 	}
 
 	public String getId() {
@@ -94,19 +91,6 @@ public class User {
 		return sb.toString();
 	}
 	
-	public String displayMessages_() {
-		StringBuilder sb = new StringBuilder();
-		for(HashMap.Entry<String, List<String>> entry: this.inbox.entrySet()) {
-			//sb.append("---" + entry.getKey() + "---" + System.getProperty("line.separator"));
-			for(String s: entry.getValue()) {
-				return s;
-			//	sb.append(s + System.getProperty("line.separator"));
-			}
-		}
-		//sb.append("----------" + System.getProperty("line.separator"));
-		return sb.toString();
-	}
-	
 	public boolean hasSender(String id) {
 		return this.inbox.containsKey(id);
 	}
@@ -137,9 +121,7 @@ public class User {
 	public String getAllMessages() {
 		StringBuilder sb = new StringBuilder();
 		for(HashMap.Entry<String, List<String>> entry: this.inbox.entrySet()) {
-			System.out.println(entry.getKey());
 			sb.append(getMessagesFromSender(entry.getKey()) + System.getProperty("line.separator"));
-			System.out.println(sb.toString());
 		}
 		return sb.toString();
 	}

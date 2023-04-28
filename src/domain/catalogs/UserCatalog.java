@@ -74,7 +74,6 @@ public class UserCatalog {
 		if(!sb.isEmpty()) {
 			sb.setLength(sb.length() - 2);			
 		}
-		System.out.println(sb.toString());
 		return sb.toString();
 	}
 }

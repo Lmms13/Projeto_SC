@@ -1,4 +1,4 @@
 tinto:pinto:10:20
 branco:pedro:3:10
 rose:pedro:30:5
-branco:pinto:10:7
+branco:pinto:15:7
